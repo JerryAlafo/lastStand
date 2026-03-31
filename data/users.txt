@@ -1,1 +1,2 @@
 jerry_teste|$2a$10$s.HYuWTJAjEIMWoILDaft.R8kGj1E2M2H7NL10Fz7/p3myGhn9lkq|2026-03-30T14:52:41.734Z
+JoyBoy|$2a$10$Cj1bzM6PsueGraWBmZ2BT.EB7eQzI/5Imz1/WxnwR0JuB/eCFmy4q|2026-03-31T15:18:38.789Z|7eb85033-323f-4b70-b9b7-b9b45cc903ca|216.234.211.105|Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36
