@@ -45,30 +45,34 @@ async function getGit(): Promise<SimpleGit> {
 }
 
 async function commitAndPushToGit(filePath: string): Promise<void> {
+  if (process.env.DISABLE_GIT_SYNC === "1") {
+    console.warn(`Git sync disabled explicitly for '${filePath}'`);
+    return;
+  }
+
   try {
     const git = await getGit();
     const relativePath = path.relative(process.cwd(), filePath);
-    
+
     // Check if we're in a git repository
     try {
       await git.status();
     } catch (e) {
-      // Not in a git repo - this is OK for local dev, but critical for production
       if (process.env.VERCEL === "1") {
         throw new Error("Not in a git repository on Vercel - data would be lost!");
       }
       console.warn("Not in a git repository locally, skipping git sync");
       return;
     }
-    
+
     // Add file to staging
     await git.add(relativePath);
-    
+
     // Commit with timestamp
     const timestamp = new Date().toISOString();
     await git.commit(`Update ${relativePath} - ${timestamp}`);
-    
-    // Push to remote - MUST succeed on Vercel
+
+    // Push to remote
     try {
       await git.push();
       console.log(`✅ Pushed ${relativePath} to git`);
@@ -83,13 +87,11 @@ async function commitAndPushToGit(filePath: string): Promise<void> {
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error("❌ CRITICAL Git sync error:", errorMsg);
-    
-    // On Vercel, if git fails, data is lost - this must throw
+
     if (process.env.VERCEL === "1") {
       throw error;
     }
-    
-    // Locally, we can be more lenient
+
     console.warn("Git sync failed locally (non-critical):", errorMsg);
   }
 }
@@ -121,7 +123,8 @@ async function withFileWriteLock<T>(filePath: string, fn: () => Promise<T>) {
   return next as Promise<T>;
 }
 
-const dataDir = path.join(process.cwd(), "data");
+const gitDataDir = path.join(process.cwd(), "data");
+const dataDir = process.env.DATA_DIR || process.env.GIT_DATA_DIR || gitDataDir;
 const usersPath = path.join(dataDir, "users.txt");
 const scoresPath = path.join(dataDir, "scores.txt");
 
