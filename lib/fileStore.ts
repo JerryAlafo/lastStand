@@ -1,99 +1,27 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { simpleGit, SimpleGit } from "simple-git";
 
+// ── Config ───────────────────────────────────────────────────────────────────
+// Production (Vercel): set these env vars in the Vercel dashboard:
+//   GITHUB_TOKEN  — Personal Access Token with "repo" (read+write contents) scope
+//   GITHUB_REPO   — e.g. "jerry/last-stand-arena"
+//   GITHUB_BRANCH — optional, defaults to "main"
+//
+// Development: falls back to local filesystem (data/ folder) as before.
+
+const GITHUB_TOKEN  = process.env.GITHUB_TOKEN ?? process.env.NEXT_GIT_TOKEN ?? "";
+const GITHUB_REPO   = process.env.GITHUB_REPO   ?? "";
+const GITHUB_BRANCH = process.env.GITHUB_BRANCH ?? "main";
+
+const USE_GITHUB = Boolean(GITHUB_TOKEN && GITHUB_REPO);
+
+const DATA_FILES = {
+  users:  "data/users.txt",
+  scores: "data/scores.txt",
+} as const;
+
+// ── Write-lock queue (serialises concurrent writes per file) ─────────────────
 type QueueMap = Map<string, Promise<unknown>>;
-
-let gitInstance: SimpleGit | null = null;
-
-async function getGit(): Promise<SimpleGit> {
-  if (!gitInstance) {
-    gitInstance = simpleGit(process.cwd());
-    // Configure git if running on server
-    try {
-      await gitInstance.addConfig("user.email", "data-sync@laststandarena.local", false, "local");
-      await gitInstance.addConfig("user.name", "Data Sync", false, "local");
-      
-      // Use git credentials from environment if available
-      const token = process.env.GIT_TOKEN || process.env.NEXT_GIT_TOKEN;
-      if (token) {
-        try {
-          const repoUrl = await gitInstance.getConfig("remote.origin.url");
-          if (repoUrl && typeof repoUrl.value === "string") {
-            const httpsUrl = repoUrl.value.replace("git@github.com:", "https://github.com/");
-            const credentialsUrl = httpsUrl.replace("https://github.com/", `https://x-access-token:${token}@github.com/`);
-            await gitInstance.addConfig("remote.origin.url", credentialsUrl, false, "local");
-            console.log("✅ Git credentials configured");
-          }
-        } catch (e) {
-          console.warn("Failed to setup git credentials:", e);
-          if (process.env.VERCEL === "1") {
-            throw new Error("Cannot configure git credentials on Vercel - data will be lost!");
-          }
-        }
-      } else if (process.env.VERCEL === "1") {
-        throw new Error("GIT_TOKEN or NEXT_GIT_TOKEN not set in Vercel environment!");
-      }
-    } catch (e) {
-      console.error("Git config error:", e);
-      if (process.env.VERCEL === "1") {
-        throw e;
-      }
-    }
-  }
-  return gitInstance;
-}
-
-async function commitAndPushToGit(filePath: string): Promise<void> {
-  if (process.env.DISABLE_GIT_SYNC === "1") {
-    console.warn(`Git sync disabled explicitly for '${filePath}'`);
-    return;
-  }
-
-  const isServerless = process.env.VERCEL === "1" || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
-  if (isServerless && !process.env.GIT_TOKEN && !process.env.NEXT_GIT_TOKEN) {
-    console.warn(`Serverless environment without git token: cleanup + sync skipped for '${filePath}'`);
-    return;
-  }
-
-  try {
-    const git = await getGit();
-    const relativePath = path.relative(process.cwd(), filePath);
-
-    try {
-      await git.status();
-    } catch (e) {
-      if (process.env.VERCEL === "1") {
-        throw new Error("Not in a git repository on Vercel - data would be lost!");
-      }
-      console.warn("Not in a git repository locally, skipping git sync");
-      return;
-    }
-
-    await git.add(relativePath);
-    const timestamp = new Date().toISOString();
-    await git.commit(`Update ${relativePath} - ${timestamp}`);
-
-    try {
-      await git.push();
-      console.log(`✅ Pushed ${relativePath} to git`);
-    } catch (pushError) {
-      if (process.env.VERCEL === "1") {
-        throw new Error(`Failed to push to git on Vercel: ${pushError instanceof Error ? pushError.message : pushError}`);
-      }
-      console.warn("Push failed (may be offline or no remote):", pushError instanceof Error ? pushError.message : pushError);
-    }
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error("❌ CRITICAL Git sync error:", errorMsg);
-
-    if (process.env.VERCEL === "1") {
-      throw error;
-    }
-
-    console.warn("Git sync failed locally (non-critical):", errorMsg);
-  }
-}
 
 function getQueues(): QueueMap {
   const g = globalThis as unknown as { __fileStoreQueues?: QueueMap };
@@ -101,73 +29,112 @@ function getQueues(): QueueMap {
   return g.__fileStoreQueues;
 }
 
-async function ensureDir(dirPath: string) {
-  await fs.mkdir(dirPath, { recursive: true });
-}
-
-async function ensureFile(filePath: string) {
-  try {
-    await fs.access(filePath);
-  } catch {
-    await fs.writeFile(filePath, "");
-  }
-}
-
-async function withFileWriteLock<T>(filePath: string, fn: () => Promise<T>) {
+async function withWriteLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const queues = getQueues();
-  const prev = queues.get(filePath) ?? Promise.resolve();
-  const safePrev = prev.catch(() => undefined);
-  const next = safePrev.then(fn);
-  queues.set(filePath, next);
+  const prev   = queues.get(key) ?? Promise.resolve();
+  const next   = prev.catch(() => undefined).then(fn);
+  queues.set(key, next);
   return next as Promise<T>;
 }
 
-const gitDataDir = path.join(process.cwd(), "data");
-const isServerless = process.env.VERCEL === "1" || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
-const dataDir =
-  process.env.DATA_DIR ||
-  process.env.GIT_DATA_DIR ||
-  (isServerless ? "/tmp/data" : gitDataDir);
-const usersPath = path.join(dataDir, "users.txt");
-const scoresPath = path.join(dataDir, "scores.txt");
+// ── GitHub REST API helpers ───────────────────────────────────────────────────
 
-export async function readUsersLines(): Promise<string[]> {
-  await ensureDir(dataDir);
-  await ensureFile(usersPath);
-  const content = await fs.readFile(usersPath, "utf8");
-  return content.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+type GHFile = { content: string; sha: string };
+
+async function ghGet(filePath: string): Promise<GHFile | null> {
+  const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${filePath}?ref=${GITHUB_BRANCH}`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      Accept: "application/vnd.github+json",
+    },
+    cache: "no-store",
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GitHub GET ${filePath} → ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as { content: string; sha: string };
+  return {
+    content: Buffer.from(data.content, "base64").toString("utf8"),
+    sha: data.sha,
+  };
 }
 
-export async function appendUserLine(line: string): Promise<void> {
-  await withFileWriteLock(usersPath, async () => {
-    await ensureDir(dataDir);
-    await ensureFile(usersPath);
-    await fs.appendFile(usersPath, `${line}\n`, "utf8");
-    await commitAndPushToGit(usersPath);
+async function ghPut(filePath: string, content: string, sha: string | null): Promise<void> {
+  const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${filePath}`;
+  const body: Record<string, unknown> = {
+    message: `data: update ${filePath}`,
+    content: Buffer.from(content, "utf8").toString("base64"),
+    branch:  GITHUB_BRANCH,
+  };
+  if (sha) body.sha = sha;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`GitHub PUT ${filePath} → ${res.status}: ${await res.text()}`);
+}
+
+// ── Local filesystem helpers (development) ────────────────────────────────────
+
+const dataDir = path.join(process.cwd(), "data");
+
+async function ensureLocalFile(p: string) {
+  await fs.mkdir(path.dirname(p), { recursive: true });
+  try { await fs.access(p); } catch { await fs.writeFile(p, ""); }
+}
+
+// ── Core read / append ────────────────────────────────────────────────────────
+
+async function readLines(filePath: string): Promise<string[]> {
+  if (USE_GITHUB) {
+    const file = await ghGet(filePath);
+    if (!file) return [];
+    return file.content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  }
+  const lp = path.join(process.cwd(), filePath);
+  await ensureLocalFile(lp);
+  const raw = await fs.readFile(lp, "utf8");
+  return raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+}
+
+async function appendLine(filePath: string, line: string): Promise<void> {
+  await withWriteLock(filePath, async () => {
+    if (USE_GITHUB) {
+      // Read current content + SHA, append line, write back.
+      // Retry once on 409 Conflict (two Vercel instances racing on the same SHA).
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const file       = await ghGet(filePath);
+        const existing   = file?.content ?? "";
+        const newContent = existing === "" || existing.endsWith("\n")
+          ? existing + line + "\n"
+          : existing + "\n" + line + "\n";
+        try {
+          await ghPut(filePath, newContent, file?.sha ?? null);
+          return;
+        } catch (err) {
+          if (attempt === 0 && err instanceof Error && err.message.includes("409")) continue;
+          throw err;
+        }
+      }
+    } else {
+      const lp = path.join(process.cwd(), filePath);
+      await ensureLocalFile(lp);
+      await fs.appendFile(lp, `${line}\n`, "utf8");
+    }
   });
 }
 
-export async function readScoresLines(): Promise<string[]> {
-  await ensureDir(dataDir);
-  await ensureFile(scoresPath);
-  const content = await fs.readFile(scoresPath, "utf8");
-  return content.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-}
+// ── Public API ────────────────────────────────────────────────────────────────
 
-export async function appendScoreLine(line: string): Promise<void> {
-  await withFileWriteLock(scoresPath, async () => {
-    await ensureDir(dataDir);
-    await ensureFile(scoresPath);
-    await fs.appendFile(scoresPath, `${line}\n`, "utf8");
-    await commitAndPushToGit(scoresPath);
-  });
-}
+export async function readUsersLines():           Promise<string[]> { return readLines(DATA_FILES.users);       }
+export async function appendUserLine(l: string):  Promise<void>     { return appendLine(DATA_FILES.users, l);  }
+export async function readScoresLines():          Promise<string[]> { return readLines(DATA_FILES.scores);      }
+export async function appendScoreLine(l: string): Promise<void>     { return appendLine(DATA_FILES.scores, l); }
 
-export function getUsersPath() {
-  return usersPath;
-}
-
-export function getScoresPath() {
-  return scoresPath;
-}
-
+export function getUsersPath()  { return path.join(dataDir, "users.txt");  }
+export function getScoresPath() { return path.join(dataDir, "scores.txt"); }
