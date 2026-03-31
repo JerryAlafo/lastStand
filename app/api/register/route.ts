@@ -38,6 +38,7 @@ export async function POST(req: Request) {
     console.log(`📝 Registering user: ${username}`);
     await appendUserLine(line);
     console.log(`✅ User registered successfully: ${username}`);
+    console.log(`✅ User registered successfully: ${username}`);
 
     return NextResponse.json({ ok: true });
   } catch (error) {
