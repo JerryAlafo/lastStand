@@ -436,22 +436,23 @@ export default function GameScene() {
   useEffect(() => {
     if (!mounted || !mountRef.current) return;
     const el = mountRef.current;
+    const isMobile = window.matchMedia("(pointer: coarse)").matches;
 
     // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
+    const renderer = new THREE.WebGLRenderer({ antialias: !isMobile });
+    renderer.setPixelRatio(isMobile ? 1 : Math.min(devicePixelRatio, 2));
+    renderer.shadowMap.enabled = !isMobile;
     renderer.setClearColor(0x050010);
     renderer.setSize(el.clientWidth, el.clientHeight);
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050010);
-    scene.fog = new THREE.Fog(0x0a0020, 60, 220);
+    scene.fog = new THREE.Fog(0x0a0020, isMobile ? 30 : 60, isMobile ? 90 : 220);
 
     // Starfield
     {
-      const starCount = 1800;
+      const starCount = isMobile ? 500 : 1800;
       const positions = new Float32Array(starCount * 3);
       for (let i = 0; i < starCount; i++) {
         const theta = Math.random() * Math.PI * 2;
@@ -470,49 +471,52 @@ export default function GameScene() {
     }
 
     // Clouds — one shared material, colour + opacity lerped by day/night
-    const cloudMat = new THREE.MeshStandardMaterial({
-      color: 0x223344,  // starts dark (night)
-      transparent: true,
-      opacity: 0.18,    // always slightly visible
-      roughness: 1,
-      metalness: 0,
-      depthWrite: false,
-    });
     interface Cloud { group: THREE.Group; speed: number; angle: number; radius: number; y: number }
     const clouds: Cloud[] = [];
-    // Close layer: just above arena, clearly in camera FOV
-    for (let ci = 0; ci < 7; ci++) {
-      const group = new THREE.Group();
-      const angle = (ci / 7) * Math.PI * 2 + Math.random() * 0.5;
-      const radius = 20 + Math.random() * 16;
-      const y = 13 + Math.random() * 6;
-      group.position.set(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
-      const blobCount = 4 + Math.floor(Math.random() * 3);
-      for (let bi = 0; bi < blobCount; bi++) {
-        const size = 2.5 + Math.random() * 3;
-        const blob = new THREE.Mesh(new THREE.SphereGeometry(size, 7, 5), cloudMat);
-        blob.position.set((bi - blobCount / 2) * 3.5 + Math.random() * 1.5, Math.random() * 2 - 1, Math.random() * 2 - 1);
-        group.add(blob);
+    let cloudMat: THREE.MeshStandardMaterial | null = null;
+    if (!isMobile) {
+      cloudMat = new THREE.MeshStandardMaterial({
+        color: 0x223344,  // starts dark (night)
+        transparent: true,
+        opacity: 0.18,    // always slightly visible
+        roughness: 1,
+        metalness: 0,
+        depthWrite: false,
+      });
+      // Close layer: just above arena, clearly in camera FOV
+      for (let ci = 0; ci < 7; ci++) {
+        const group = new THREE.Group();
+        const angle = (ci / 7) * Math.PI * 2 + Math.random() * 0.5;
+        const radius = 20 + Math.random() * 16;
+        const y = 13 + Math.random() * 6;
+        group.position.set(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
+        const blobCount = 4 + Math.floor(Math.random() * 3);
+        for (let bi = 0; bi < blobCount; bi++) {
+          const size = 2.5 + Math.random() * 3;
+          const blob = new THREE.Mesh(new THREE.SphereGeometry(size, 7, 5), cloudMat);
+          blob.position.set((bi - blobCount / 2) * 3.5 + Math.random() * 1.5, Math.random() * 2 - 1, Math.random() * 2 - 1);
+          group.add(blob);
+        }
+        scene.add(group);
+        clouds.push({ group, speed: 0.00018 + Math.random() * 0.00012, angle, radius, y });
       }
-      scene.add(group);
-      clouds.push({ group, speed: 0.00018 + Math.random() * 0.00012, angle, radius, y });
-    }
-    // Far layer: background depth
-    for (let ci = 0; ci < 6; ci++) {
-      const group = new THREE.Group();
-      const angle = (ci / 6) * Math.PI * 2 + 0.2;
-      const radius = 38 + Math.random() * 22;
-      const y = 20 + Math.random() * 10;
-      group.position.set(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
-      const blobCount = 5 + Math.floor(Math.random() * 3);
-      for (let bi = 0; bi < blobCount; bi++) {
-        const size = 4 + Math.random() * 4.5;
-        const blob = new THREE.Mesh(new THREE.SphereGeometry(size, 7, 5), cloudMat);
-        blob.position.set((bi - blobCount / 2) * 5 + Math.random() * 2, Math.random() * 3 - 1.5, Math.random() * 2 - 1);
-        group.add(blob);
+      // Far layer: background depth
+      for (let ci = 0; ci < 6; ci++) {
+        const group = new THREE.Group();
+        const angle = (ci / 6) * Math.PI * 2 + 0.2;
+        const radius = 38 + Math.random() * 22;
+        const y = 20 + Math.random() * 10;
+        group.position.set(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
+        const blobCount = 5 + Math.floor(Math.random() * 3);
+        for (let bi = 0; bi < blobCount; bi++) {
+          const size = 4 + Math.random() * 4.5;
+          const blob = new THREE.Mesh(new THREE.SphereGeometry(size, 7, 5), cloudMat);
+          blob.position.set((bi - blobCount / 2) * 5 + Math.random() * 2, Math.random() * 3 - 1.5, Math.random() * 2 - 1);
+          group.add(blob);
+        }
+        scene.add(group);
+        clouds.push({ group, speed: 0.00008 + Math.random() * 0.00008, angle, radius, y });
       }
-      scene.add(group);
-      clouds.push({ group, speed: 0.00008 + Math.random() * 0.00008, angle, radius, y });
     }
 
     const camera = new THREE.PerspectiveCamera(
@@ -551,7 +555,7 @@ export default function GameScene() {
 
     // Floor
     const floor = new THREE.Mesh(
-      new THREE.CylinderGeometry(AR, AR, 0.4, 64),
+      new THREE.CylinderGeometry(AR, AR, 0.4, isMobile ? 24 : 64),
       new THREE.MeshStandardMaterial({ color: 0x302f55, roughness: 0.95 }),
     );
     floor.position.y = -0.2;
@@ -563,7 +567,7 @@ export default function GameScene() {
     scene.add(grid);
 
     const centerField = new THREE.Mesh(
-      new THREE.RingGeometry(0.6, AR - 1.3, 96),
+      new THREE.RingGeometry(0.6, AR - 1.3, isMobile ? 32 : 96),
       new THREE.MeshStandardMaterial({
         color: 0x101428,
         roughness: 0.95,
@@ -578,7 +582,7 @@ export default function GameScene() {
     scene.add(centerField);
 
     const ringFloor = new THREE.Mesh(
-      new THREE.RingGeometry(1.5, 3.2, 96),
+      new THREE.RingGeometry(1.5, 3.2, isMobile ? 32 : 96),
       new THREE.MeshStandardMaterial({
         color: 0x44527b,
         roughness: 0.9,
@@ -634,7 +638,7 @@ export default function GameScene() {
 
     // Boundary ring
     const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(AR, 0.18, 8, 64),
+      new THREE.TorusGeometry(AR, 0.18, 6, isMobile ? 32 : 64),
       new THREE.MeshBasicMaterial({ color: 0xff2244 }),
     );
     ring.rotation.x = Math.PI / 2;
@@ -669,55 +673,6 @@ export default function GameScene() {
       animOffset: number;
     }> = [];
 
-    const buildSpectator = (color: number, skin: number) => {
-      const g = new THREE.Group();
-
-      const body = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.16, 0.14, 0.54, 10),
-        new THREE.MeshStandardMaterial({ color, roughness: 0.65 }),
-      );
-      body.position.y = 0.32;
-      body.castShadow = true;
-      g.add(body);
-
-      const head = new THREE.Mesh(
-        new THREE.SphereGeometry(0.16, 10, 10),
-        new THREE.MeshStandardMaterial({ color: skin, roughness: 0.85 }),
-      );
-      head.position.y = 0.78;
-      head.castShadow = true;
-      g.add(head);
-
-      const armL = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.05, 0.05, 0.28, 8),
-        new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.7 }),
-      );
-      armL.position.set(-0.16, 0.47, 0);
-      armL.rotation.z = 0.4;
-      g.add(armL);
-
-      const armR = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.05, 0.05, 0.28, 8),
-        new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.7 }),
-      );
-      armR.position.set(0.16, 0.47, 0);
-      armR.rotation.z = -0.4;
-      g.add(armR);
-
-      const legL = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.06, 0.25, 7),
-        new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 }),
-      );
-      legL.position.set(-0.06, 0.0, 0);
-      g.add(legL);
-
-      const legR = legL.clone();
-      legR.position.x = 0.06;
-      g.add(legR);
-
-      return { g, armL, armR };
-    };
-
     const bleacherMat = new THREE.MeshStandardMaterial({
       color: 0x2b2b3f,
       roughness: 0.9,
@@ -737,29 +692,86 @@ export default function GameScene() {
         );
         bench.position.set(0, y, side * (AR + 0.7 + row * 0.34));
         bleachers.add(bench);
+      }
+    }
 
-        // Spectators row
-        for (let i = -10; i <= 10; i++) {
-          if (Math.random() > 0.78) continue;
-          const shirt =
-            crowdShirtColors[
-              Math.floor(Math.random() * crowdShirtColors.length)
-            ];
-          const skin = crowdSkin[Math.floor(Math.random() * crowdSkin.length)];
-          const { g, armL, armR } = buildSpectator(shirt, skin);
-          g.position.set(
-            i * 0.42,
-            y + 0.18,
-            side * (AR + 0.7 + row * 0.34 + side * 0.28),
-          );
-          g.rotation.y = -side * 0.12;
-          spectators.push({
-            group: g,
-            armL,
-            armR,
-            animOffset: Math.random() * Math.PI * 2,
-          });
-          bleachers.add(g);
+    if (!isMobile) {
+      const buildSpectator = (color: number, skin: number) => {
+        const g = new THREE.Group();
+
+        const body = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.16, 0.14, 0.54, 10),
+          new THREE.MeshStandardMaterial({ color, roughness: 0.65 }),
+        );
+        body.position.y = 0.32;
+        body.castShadow = true;
+        g.add(body);
+
+        const head = new THREE.Mesh(
+          new THREE.SphereGeometry(0.16, 10, 10),
+          new THREE.MeshStandardMaterial({ color: skin, roughness: 0.85 }),
+        );
+        head.position.y = 0.78;
+        head.castShadow = true;
+        g.add(head);
+
+        const armL = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.05, 0.05, 0.28, 8),
+          new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.7 }),
+        );
+        armL.position.set(-0.16, 0.47, 0);
+        armL.rotation.z = 0.4;
+        g.add(armL);
+
+        const armR = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.05, 0.05, 0.28, 8),
+          new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.7 }),
+        );
+        armR.position.set(0.16, 0.47, 0);
+        armR.rotation.z = -0.4;
+        g.add(armR);
+
+        const legL = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.06, 0.06, 0.25, 7),
+          new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 }),
+        );
+        legL.position.set(-0.06, 0.0, 0);
+        g.add(legL);
+
+        const legR = legL.clone();
+        legR.position.x = 0.06;
+        g.add(legR);
+
+        return { g, armL, armR };
+      };
+
+      for (let side = -1; side <= 1; side += 2) {
+        for (let row = 0; row < 7; row++) {
+          const y = 0.1 + row * 0.26;
+
+          // Spectators row
+          for (let i = -10; i <= 10; i++) {
+            if (Math.random() > 0.78) continue;
+            const shirt =
+              crowdShirtColors[
+                Math.floor(Math.random() * crowdShirtColors.length)
+              ];
+            const skin = crowdSkin[Math.floor(Math.random() * crowdSkin.length)];
+            const { g, armL, armR } = buildSpectator(shirt, skin);
+            g.position.set(
+              i * 0.42,
+              y + 0.18,
+              side * (AR + 0.7 + row * 0.34 + side * 0.28),
+            );
+            g.rotation.y = -side * 0.12;
+            spectators.push({
+              group: g,
+              armL,
+              armR,
+              animOffset: Math.random() * Math.PI * 2,
+            });
+            bleachers.add(g);
+          }
         }
       }
     }
@@ -807,48 +819,52 @@ export default function GameScene() {
     }
 
     // Stadium lighting arrays
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const light = new THREE.SpotLight(
-        0xffffff,
-        1.6,
-        80,
-        Math.PI / 6,
-        0.35,
-        1,
-      );
-      light.position.set(
-        Math.cos(angle) * (AR + 3),
-        8.3,
-        Math.sin(angle) * (AR + 3),
-      );
-      light.target.position.set(0, 0, 0);
-      scene.add(light);
-      scene.add(light.target);
+    if (!isMobile) {
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const light = new THREE.SpotLight(
+          0xffffff,
+          1.6,
+          80,
+          Math.PI / 6,
+          0.35,
+          1,
+        );
+        light.position.set(
+          Math.cos(angle) * (AR + 3),
+          8.3,
+          Math.sin(angle) * (AR + 3),
+        );
+        light.target.position.set(0, 0, 0);
+        scene.add(light);
+        scene.add(light.target);
+      }
     }
 
     const spectatorList = spectators;
 
     // Stadium focal lights
-    const cornerLightColors = [0xffa500, 0xffffff];
-    for (let i = 0; i < 4; i++) {
-      const angle = (i / 4) * Math.PI * 2;
-      const light = new THREE.SpotLight(
-        cornerLightColors[i % 2],
-        2.2,
-        60,
-        0.5,
-        0.5,
-        1,
-      );
-      light.position.set(
-        Math.cos(angle) * (AR + 9),
-        10,
-        Math.sin(angle) * (AR + 9),
-      );
-      light.target.position.set(0, 0, 0);
-      scene.add(light);
-      scene.add(light.target);
+    if (!isMobile) {
+      const cornerLightColors = [0xffa500, 0xffffff];
+      for (let i = 0; i < 4; i++) {
+        const angle = (i / 4) * Math.PI * 2;
+        const light = new THREE.SpotLight(
+          cornerLightColors[i % 2],
+          2.2,
+          60,
+          0.5,
+          0.5,
+          1,
+        );
+        light.position.set(
+          Math.cos(angle) * (AR + 9),
+          10,
+          Math.sin(angle) * (AR + 9),
+        );
+        light.target.position.set(0, 0, 0);
+        scene.add(light);
+        scene.add(light.target);
+      }
     }
 
     // Player rig
@@ -1133,19 +1149,23 @@ export default function GameScene() {
         if (sm) sm.opacity = Math.max(0, 1 - t * 2.5);
 
         // Clouds: dark at night, white at day; always a bit visible
-        cloudMat.opacity = 0.18 + t * 0.62;
-        cloudMat.color.setRGB(
-          0.13 + t * 0.87,  // R: dark→white
-          0.20 + t * 0.80,  // G
-          0.26 + t * 0.74,  // B
-        );
-        for (const c of clouds) {
-          c.angle += c.speed;
-          c.group.position.set(
-            Math.cos(c.angle) * c.radius,
-            c.y + Math.sin(c.angle * 3) * 2,
-            Math.sin(c.angle) * c.radius,
+        if (cloudMat) {
+          cloudMat.opacity = 0.18 + t * 0.62;
+          cloudMat.color.setRGB(
+            0.13 + t * 0.87,  // R: dark→white
+            0.20 + t * 0.80,  // G
+            0.26 + t * 0.74,  // B
           );
+        }
+        if (clouds.length > 0) {
+          for (const c of clouds) {
+            c.angle += c.speed;
+            c.group.position.set(
+              Math.cos(c.angle) * c.radius,
+              c.y + Math.sin(c.angle * 3) * 2,
+              Math.sin(c.angle) * c.radius,
+            );
+          }
         }
 
         // Expose to HUD
@@ -1423,12 +1443,14 @@ export default function GameScene() {
       }
 
       // Spectator animations (torcida viva)
-      for (const s of spectatorList) {
-        const cheer = Math.sin(frame * 0.32 + s.animOffset) * 0.22 + 0.18;
-        s.armL.rotation.z = 0.4 + cheer;
-        s.armR.rotation.z = -0.4 - cheer;
-        s.group.position.y =
-          0.14 + Math.sin(frame * 0.18 + s.animOffset) * 0.015;
+      if (spectators.length > 0) {
+        for (const s of spectatorList) {
+          const cheer = Math.sin(frame * 0.32 + s.animOffset) * 0.22 + 0.18;
+          s.armL.rotation.z = 0.4 + cheer;
+          s.armR.rotation.z = -0.4 - cheer;
+          s.group.position.y =
+            0.14 + Math.sin(frame * 0.18 + s.animOffset) * 0.015;
+        }
       }
 
       // Arena effects
