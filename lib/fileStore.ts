@@ -50,11 +50,16 @@ async function commitAndPushToGit(filePath: string): Promise<void> {
     return;
   }
 
+  const isServerless = process.env.VERCEL === "1" || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+  if (isServerless && !process.env.GIT_TOKEN && !process.env.NEXT_GIT_TOKEN) {
+    console.warn(`Serverless environment without git token: cleanup + sync skipped for '${filePath}'`);
+    return;
+  }
+
   try {
     const git = await getGit();
     const relativePath = path.relative(process.cwd(), filePath);
 
-    // Check if we're in a git repository
     try {
       await git.status();
     } catch (e) {
@@ -65,22 +70,16 @@ async function commitAndPushToGit(filePath: string): Promise<void> {
       return;
     }
 
-    // Add file to staging
     await git.add(relativePath);
-
-    // Commit with timestamp
     const timestamp = new Date().toISOString();
     await git.commit(`Update ${relativePath} - ${timestamp}`);
 
-    // Push to remote
     try {
       await git.push();
       console.log(`✅ Pushed ${relativePath} to git`);
     } catch (pushError) {
       if (process.env.VERCEL === "1") {
-        throw new Error(
-          `Failed to push to git on Vercel: ${pushError instanceof Error ? pushError.message : pushError}`
-        );
+        throw new Error(`Failed to push to git on Vercel: ${pushError instanceof Error ? pushError.message : pushError}`);
       }
       console.warn("Push failed (may be offline or no remote):", pushError instanceof Error ? pushError.message : pushError);
     }
@@ -124,7 +123,11 @@ async function withFileWriteLock<T>(filePath: string, fn: () => Promise<T>) {
 }
 
 const gitDataDir = path.join(process.cwd(), "data");
-const dataDir = process.env.DATA_DIR || process.env.GIT_DATA_DIR || gitDataDir;
+const isServerless = process.env.VERCEL === "1" || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+const dataDir =
+  process.env.DATA_DIR ||
+  process.env.GIT_DATA_DIR ||
+  (isServerless ? "/tmp/data" : gitDataDir);
 const usersPath = path.join(dataDir, "users.txt");
 const scoresPath = path.join(dataDir, "scores.txt");
 
