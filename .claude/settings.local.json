@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const fs=require\\(''fs''\\);const t=fs.readFileSync\\(''components/game/HUD.tsx'',''utf8''\\);const emoji=/[\\\\u{1F300}-\\\\u{1F9FF}]|[\\\\u{2600}-\\\\u{27BF}]/gu;const m=[...t.matchAll\\(emoji\\)];if\\(m.length===0\\)console.log\\(''No emoji found''\\);else m.forEach\\(x=>console.log\\(''line'',t.slice\\(0,x.index\\).split\\(''\\\\n''\\).length,JSON.stringify\\(x[0]\\)\\)\\)\")",
+      "Bash(node -e \"const fs=require\\(''fs''\\);[''app/donate/page.tsx'',''app/game/page.tsx''].forEach\\(f=>{const t=fs.readFileSync\\(f,''utf8''\\);const emoji=/[\\\\u{1F300}-\\\\u{1F9FF}]|[\\\\u{2600}-\\\\u{27BF}]/gu;const m=[...t.matchAll\\(emoji\\)];if\\(m.length===0\\)console.log\\(f+'': no emoji''\\);else m.forEach\\(x=>console.log\\(f+'' line'',t.slice\\(0,x.index\\).split\\(''\\\\n''\\).length,JSON.stringify\\(x[0]\\)\\)\\)}\\)\")"
+    ]
+  }
+}
