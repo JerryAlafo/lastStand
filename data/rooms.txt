@@ -1,3 +1,6 @@
 {"id":"a51442","mode":"pvp","host":"JoyBoy","guest":"jerry_teste","status":"playing","createdAt":1775031707414}
 {"id":"dad25e","mode":"pvp","host":"JoyBoy","guest":"jerry_teste","status":"playing","createdAt":1775033801797}
 {"id":"fcb014","mode":"pvp","host":"JoyBoy","guest":"jerry_teste","status":"playing","createdAt":1775037972775}
+{"id":"273153","mode":"pvp","host":"JoyBoy","guest":"acossa","status":"playing","createdAt":1775047324937}
+{"id":"f610a4","mode":"coop","host":"acossa","guest":"JoyBoy","status":"playing","createdAt":1775047542935}
+{"id":"618782","mode":"pvp","host":"JoyBoy","guest":"deoderso","status":"playing","createdAt":1775061810726}

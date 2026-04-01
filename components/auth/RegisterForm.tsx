@@ -49,10 +49,10 @@ export default function RegisterForm() {
       fontSize: 15,
       "& fieldset": { borderColor: "rgba(255,255,255,0.2)" },
       "&:hover fieldset": { borderColor: "rgba(180,140,255,0.65)" },
-      "&.Mui-focused fieldset": { borderColor: "#bb66ff", borderWidth: 2 },
+      "&.Mui-focused fieldset": { borderColor: "#7b2ff7", borderWidth: 2 },
     },
     "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.65)", fontSize: 15 },
-    "& .MuiInputLabel-root.Mui-focused": { color: "#cc88ff" },
+    "& .MuiInputLabel-root.Mui-focused": { color: "#aa55ff" },
     "& .MuiInputAdornment-root svg": { color: "rgba(255,255,255,0.55)" },
   };
 
@@ -95,7 +95,7 @@ export default function RegisterForm() {
                   onClick={() => setShowPw((v) => !v)}
                   edge="end"
                   size="small"
-                  sx={{ color: "rgba(255,255,255,0.5)", "&:hover": { color: "#cc88ff" } }}
+                  sx={{ color: "rgba(255,255,255,0.5)", "&:hover": { color: "#aa55ff" } }}
                   tabIndex={-1}
                 >
                   {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -132,7 +132,7 @@ export default function RegisterForm() {
 
       <Typography sx={{ textAlign: "center", fontSize: 14, color: "rgba(255,255,255,0.65)", mt: 0.5 }}>
         Já tem conta?{" "}
-        <a href="/login" style={{ color: "#cc88ff", textDecoration: "none", fontWeight: 700 }}>
+        <a href="/login" style={{ color: "#aa55ff", textDecoration: "none", fontWeight: 700 }}>
           Entrar
         </a>
       </Typography>

@@ -117,9 +117,9 @@ function LobbyContent() {
           <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
             {/* Host */}
             <Box sx={{ flex: 1, p: 2, background: "rgba(123,47,247,0.12)", border: "1px solid rgba(123,47,247,0.3)", borderRadius: 2, textAlign: "center" }}>
-              <Typography sx={{ fontSize: 10, letterSpacing: 2, color: "rgba(170,102,255,0.7)", textTransform: "uppercase", mb: 1 }}>Criador</Typography>
-              <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#cc88ff" }}>
-                {session?.user?.username ?? "…"}
+              <Typography sx={{ fontSize: 10, letterSpacing: 2, color: "rgba(200,150,255,0.75)", textTransform: "uppercase", mb: 1 }}>Criador</Typography>
+              <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#aa55ff" }}>
+                {room?.host ?? "…"}
               </Typography>
               <Box sx={{ width: 8, height: 8, borderRadius: "50%", background: "#2ecc71", mx: "auto", mt: 1 }} />
             </Box>
@@ -187,7 +187,7 @@ function LobbyContent() {
         ) : (
           <Box sx={{ textAlign: "center", py: 2 }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1.5, mb: 1 }}>
-              <CircularProgress size={16} sx={{ color: "rgba(170,102,255,0.7)" }} />
+              <CircularProgress size={16} sx={{ color: "rgba(200,150,255,0.75)" }} />
               <Typography sx={{ fontSize: 14, color: "rgba(200,150,255,0.8)", fontWeight: 600 }}>
                 A aguardar que o anfitrião inicie…
               </Typography>

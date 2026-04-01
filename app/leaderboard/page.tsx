@@ -55,8 +55,7 @@ export default function LeaderboardPage() {
       }}
     >
       {/* Decorative glows */}
-      <div style={{ position: "fixed", top: "5%", left: "10%", width: 350, height: 350, borderRadius: "50%", background: "radial-gradient(circle, rgba(123,47,247,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
-      <div style={{ position: "fixed", bottom: "10%", right: "8%", width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,195,255,0.09) 0%, transparent 70%)", pointerEvents: "none" }} />
+      <div style={{ position: "fixed", top: "5%", left: "10%", width: 350, height: 350, borderRadius: "50%", background: "radial-gradient(circle, rgba(123,47,247,0.14) 0%, transparent 70%)", pointerEvents: "none" }} />
 
       <Box sx={{ maxWidth: 820, mx: "auto", position: "relative", zIndex: 1 }}>
         {/* Header */}
@@ -82,7 +81,7 @@ export default function LeaderboardPage() {
               sx={{
                 fontSize: 26,
                 fontWeight: 800,
-                background: "linear-gradient(135deg, #fff, #cc88ff)",
+                background: "linear-gradient(135deg, #fff, #aa55ff)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 letterSpacing: 1,
@@ -116,7 +115,7 @@ export default function LeaderboardPage() {
             }}
           >
             {(isMobile ? ["#", "Jogador", "Score", "Kills"] : ["#", "Jogador", "Score", "Wave", "Kills", "Data"]).map((h) => (
-              <Typography key={h} sx={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: "rgba(170,102,255,0.7)", textTransform: "uppercase" }}>
+              <Typography key={h} sx={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: "rgba(200,150,255,0.75)", textTransform: "uppercase" }}>
                 {h}
               </Typography>
             ))}
@@ -171,16 +170,16 @@ export default function LeaderboardPage() {
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: 11, fontWeight: 800,
                         background: isMe ? "rgba(123,47,247,0.4)" : "rgba(255,255,255,0.07)",
-                        border: isMe ? "1px solid rgba(170,102,255,0.5)" : "1px solid rgba(255,255,255,0.08)",
-                        color: isMe ? "#cc88ff" : "rgba(255,255,255,0.6)",
+                        border: isMe ? "1px solid rgba(123,47,247,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                        color: isMe ? "#aa55ff" : "rgba(255,255,255,0.6)",
                         flexShrink: 0,
                       }}
                     >
                       {r.username.slice(0, 2).toUpperCase()}
                     </Box>
-                    <Typography sx={{ fontSize: 14, fontWeight: isMe ? 700 : 400, color: isMe ? "#cc88ff" : "rgba(255,255,255,0.9)" }}>
+                    <Typography sx={{ fontSize: 14, fontWeight: isMe ? 700 : 400, color: isMe ? "#aa55ff" : "rgba(255,255,255,0.9)" }}>
                       {r.username}
-                      {isMe && <span style={{ fontSize: 10, marginLeft: 6, color: "rgba(170,102,255,0.7)" }}>tu</span>}
+                      {isMe && <span style={{ fontSize: 10, marginLeft: 6, color: "rgba(200,150,255,0.75)" }}>tu</span>}
                     </Typography>
                   </Box>
 
@@ -216,7 +215,7 @@ export default function LeaderboardPage() {
             Top 10 scores globais · Last Stand Arena
           </Typography>
           <a href="/contact" style={{ textDecoration: "none" }}>
-            <Typography sx={{ fontSize: 12, color: "rgba(170,102,255,0.5)", "&:hover": { color: "#aa66ff" }, transition: "color 0.2s", cursor: "pointer" }}>
+            <Typography sx={{ fontSize: 12, color: "rgba(123,47,247,0.4)", "&:hover": { color: "#aa55ff" }, transition: "color 0.2s", cursor: "pointer" }}>
               Contacto
             </Typography>
           </a>

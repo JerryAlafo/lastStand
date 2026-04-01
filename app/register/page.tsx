@@ -20,8 +20,7 @@ export default async function RegisterPage() {
       position: "relative",
     }}>
       {/* Glow blobs */}
-      <div style={{ position: "absolute", top: "8%", right: "10%", width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle, rgba(123,47,247,0.22) 0%, transparent 70%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", bottom: "10%", left: "8%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,195,255,0.16) 0%, transparent 70%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", top: "8%", right: "10%", width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle, rgba(123,47,247,0.2) 0%, transparent 70%)", pointerEvents: "none" }} />
 
       <div style={{
         width: "100%",
@@ -39,7 +38,7 @@ export default async function RegisterPage() {
           <div style={{ fontSize: 12, letterSpacing: 5, color: "rgba(200,150,255,0.8)", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 12 }}>
             Last Stand Arena
           </div>
-          <div style={{ fontSize: 30, fontWeight: 800, background: "linear-gradient(135deg, #ffffff, #dd99ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: 0.5, marginBottom: 8 }}>
+          <div style={{ fontSize: 30, fontWeight: 800, background: "linear-gradient(135deg, #fff, #aa55ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: 0.5, marginBottom: 8 }}>
             Criar conta
           </div>
           <div style={{ fontSize: 15, color: "rgba(255,255,255,0.55)" }}>

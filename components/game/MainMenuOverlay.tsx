@@ -102,7 +102,7 @@ export default function MainMenuOverlay({
           marginBottom: 4,
           position: "relative",
           zIndex: 1,
-          background: "linear-gradient(135deg,#fff,#dd99ff)",
+          background: "linear-gradient(135deg,#fff,#aa55ff)",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
         }}
@@ -236,7 +236,7 @@ export default function MainMenuOverlay({
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background = "rgba(123,47,247,0.28)";
-            (e.currentTarget as HTMLButtonElement).style.color = "#dd99ff";
+            (e.currentTarget as HTMLButtonElement).style.color = "#aa55ff";
             (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 20px rgba(123,47,247,0.4)";
           }}
           onMouseLeave={(e) => {

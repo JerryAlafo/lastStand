@@ -188,14 +188,17 @@ export default function GameOverScreen({
 
       <Box
         sx={{
-          display: "flex",
-          flexWrap: "wrap",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
           gap: 1.5,
           mt: 2,
           px: isMobile ? 1 : 0,
-          justifyContent: "center",
+          width: isMobile ? "90vw" : 340,
           position: "relative",
           zIndex: 1,
+          "& > :last-child": {
+            gridColumn: "1 / -1",
+          },
         }}
       >
         <Button

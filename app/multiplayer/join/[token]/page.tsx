@@ -18,11 +18,11 @@ const fieldSx = {
   "& .MuiOutlinedInput-root": {
     color: "#fff", backgroundColor: "rgba(255,255,255,0.07)", borderRadius: 2,
     "& fieldset": { borderColor: "rgba(255,255,255,0.15)" },
-    "&:hover fieldset": { borderColor: "rgba(170,102,255,0.5)" },
+    "&:hover fieldset": { borderColor: "rgba(123,47,247,0.5)" },
     "&.Mui-focused fieldset": { borderColor: "#7b2ff7" },
   },
   "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.4)" },
-  "& .MuiInputLabel-root.Mui-focused": { color: "#aa66ff" },
+  "& .MuiInputLabel-root.Mui-focused": { color: "#aa55ff" },
 };
 
 export default function JoinPage() {
@@ -146,7 +146,6 @@ export default function JoinPage() {
       fontFamily: "'Inter','Segoe UI',sans-serif",
     }}>
       <div style={{ position: "fixed", top: "6%", left: "6%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(123,47,247,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
-      <div style={{ position: "fixed", bottom: "8%", right: "6%", width: 240, height: 240, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,195,255,0.1) 0%, transparent 70%)", pointerEvents: "none" }} />
 
       <Box sx={{ width: "100%", maxWidth: 440, position: "relative", zIndex: 1 }}>
         {/* Room info card */}
@@ -163,8 +162,8 @@ export default function JoinPage() {
 
             <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
               <Box sx={{ p: "12px 18px", background: "rgba(123,47,247,0.12)", border: "1px solid rgba(123,47,247,0.3)", borderRadius: 2, textAlign: "center", flex: 1 }}>
-                <Typography sx={{ fontSize: 10, letterSpacing: 2, color: "rgba(170,102,255,0.6)", textTransform: "uppercase", mb: 0.5 }}>Criador</Typography>
-                <Typography sx={{ fontSize: 16, fontWeight: 900, color: "#cc88ff" }}>{room.host}</Typography>
+                <Typography sx={{ fontSize: 10, letterSpacing: 2, color: "rgba(200,150,255,0.75)", textTransform: "uppercase", mb: 0.5 }}>Criador</Typography>
+                <Typography sx={{ fontSize: 16, fontWeight: 900, color: "#aa55ff" }}>{room.host}</Typography>
               </Box>
               <Typography sx={{ color: "rgba(255,255,255,0.25)", fontWeight: 300 }}>vs</Typography>
               <Box sx={{ p: "12px 18px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 2, textAlign: "center", flex: 1 }}>
@@ -225,7 +224,7 @@ export default function JoinPage() {
                   sx={{
                     flex: 1, py: 1.2, textAlign: "center", cursor: "pointer", fontSize: 13, fontWeight: 700,
                     background: authTab === tab ? "rgba(123,47,247,0.35)" : "transparent",
-                    color: authTab === tab ? "#cc88ff" : "rgba(255,255,255,0.4)",
+                    color: authTab === tab ? "#aa55ff" : "rgba(255,255,255,0.4)",
                     transition: "all 0.15s",
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 0.8,
                   }}

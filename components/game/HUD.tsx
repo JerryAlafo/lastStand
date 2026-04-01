@@ -15,7 +15,6 @@ import {
   LogOut,
   Settings,
   Home,
-  Skull,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { MultiProps } from "@/lib/gameTypes";
@@ -62,6 +61,11 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
   }, [running]);
 
   function goToMenu() {
+    if (multiProps) {
+      // In multiplayer, "menu" exits the room; GameScene unmount closes it via the close API
+      router.push("/multiplayer");
+      return;
+    }
     reset(); // sets running: true in store
     setRunning(false); // immediately override to false → show main menu
     setHasEverStarted(false);
@@ -86,8 +90,10 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
   const [ultActive, setUltActive] = useState(false);
   // PVP pre-game countdown (3, 2, 1) exposed from GameScene via window.__pvpCountdown
   const [pvpCountdown, setPvpCountdown] = useState<number | null>(null);
-  // PVP end-of-match result: "win" | "abandoned" | null
-  const [pvpResult, setPvpResult] = useState<"win" | "abandoned" | null>(null);
+  // PVP end-of-match result: "win" | "loss" | "abandoned" | null
+  const [pvpResult, setPvpResult] = useState<"win" | "loss" | "abandoned" | null>(null);
+  // Rematch vote state: which players clicked "Nova partida"
+  const [pvpRematch, setPvpRematch] = useState<{ host: boolean; guest: boolean } | null>(null);
   const dayRafRef = useRef<number>();
   const dayFrameRef = useRef(0);
   useEffect(() => {
@@ -107,8 +113,16 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
         }
         const cd = w.__pvpCountdown as number | undefined;
         setPvpCountdown(cd !== undefined ? cd : null);
-        const res = w.__pvpResult as "win" | "abandoned" | undefined;
+        const res = w.__pvpResult as "win" | "loss" | "abandoned" | undefined;
         if (res) setPvpResult(res);
+        const rm = w.__pvpRematch as { host: boolean; guest: boolean } | undefined;
+        if (rm) {
+          setPvpRematch({ ...rm });
+          // Both voted → host triggers full reset via sync
+          if (rm.host && rm.guest && multiProps?.role === "host") {
+            (w as Record<string, unknown>).__pvpTriggerReset = true;
+          }
+        }
       }
       dayRafRef.current = requestAnimationFrame(tick);
     }
@@ -269,7 +283,7 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
         </div>
       )}
 
-      {/* ── PVP Result modal (win / opponent abandoned) ── */}
+      {/* ── PVP Result modal (win / loss / abandoned) with rematch voting ── */}
       {pvpResult && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 200,
@@ -280,47 +294,104 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
             background: "linear-gradient(135deg, #1a0a30, #0e0520)",
             border: `1px solid ${pvpResult === "win" ? "rgba(46,204,113,0.4)" : "rgba(255,170,0,0.35)"}`,
             borderRadius: 20, padding: "40px 36px", textAlign: "center",
-            maxWidth: 360, width: "90%",
+            maxWidth: 380, width: "90%",
             boxShadow: pvpResult === "win"
               ? "0 0 60px rgba(46,204,113,0.25)"
               : "0 0 60px rgba(255,170,0,0.2)",
           }}>
-            <div style={{
-              fontSize: "clamp(48px, 12vw, 72px)", lineHeight: 1, marginBottom: 12,
-            }}>
-              {pvpResult === "win" ? "🏆" : "🚪"}
+            <div style={{ fontSize: "clamp(48px, 12vw, 72px)", lineHeight: 1, marginBottom: 12 }}>
+              {pvpResult === "win" ? "🏆" : pvpResult === "abandoned" ? "🚪" : "💀"}
             </div>
-            <div style={{
-              fontSize: "clamp(22px, 6vw, 32px)", fontWeight: 900, color: "#fff",
-              marginBottom: 8,
-            }}>
-              {pvpResult === "win" ? "Vitória!" : "Adversário saiu"}
+            <div style={{ fontSize: "clamp(22px, 6vw, 32px)", fontWeight: 900, color: "#fff", marginBottom: 8 }}>
+              {pvpResult === "win" ? "Vitória!" : pvpResult === "abandoned" ? "Adversário saiu" : "Derrota"}
             </div>
-            <div style={{
-              fontSize: 14, color: "rgba(255,255,255,0.5)", marginBottom: 32, lineHeight: 1.5,
-            }}>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", marginBottom: 24, lineHeight: 1.5 }}>
               {pvpResult === "win"
                 ? "Eliminaste o adversário. Parabéns!"
-                : "O adversário abandonou a partida."}
+                : pvpResult === "abandoned"
+                ? "O adversário abandonou a partida."
+                : "Foste eliminado pelo adversário."}
             </div>
-            <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+
+            {/* Rematch voting — only shown when in a live room */}
+            {multiProps && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 10, letterSpacing: 1 }}>
+                  NOVA PARTIDA
+                </div>
+                <div style={{ display: "flex", gap: 10, justifyContent: "center", marginBottom: 10 }}>
+                  {/* Host vote pill */}
+                  <div style={{
+                    padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 700,
+                    background: pvpRematch?.host ? "rgba(46,204,113,0.25)" : "rgba(255,255,255,0.06)",
+                    border: `1px solid ${pvpRematch?.host ? "rgba(46,204,113,0.5)" : "rgba(255,255,255,0.12)"}`,
+                    color: pvpRematch?.host ? "#2ecc71" : "rgba(255,255,255,0.4)",
+                    transition: "all 0.3s",
+                  }}>
+                    {pvpRematch?.host ? "✓ Anfitrião" : "… Anfitrião"}
+                  </div>
+                  {/* Guest vote pill */}
+                  <div style={{
+                    padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 700,
+                    background: pvpRematch?.guest ? "rgba(46,204,113,0.25)" : "rgba(255,255,255,0.06)",
+                    border: `1px solid ${pvpRematch?.guest ? "rgba(46,204,113,0.5)" : "rgba(255,255,255,0.12)"}`,
+                    color: pvpRematch?.guest ? "#2ecc71" : "rgba(255,255,255,0.4)",
+                    transition: "all 0.3s",
+                  }}>
+                    {pvpRematch?.guest ? "✓ Convidado" : "… Convidado"}
+                  </div>
+                </div>
+                {/* My vote button */}
+                {(() => {
+                  const myVote = multiProps.role === "host" ? pvpRematch?.host : pvpRematch?.guest;
+                  return myVote ? (
+                    <div style={{ fontSize: 12, color: "rgba(46,204,113,0.7)" }}>
+                      A aguardar o adversário…
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        const w = window as unknown as Record<string, unknown>;
+                        w.__pvpRematchVote = true;
+                        setPvpRematch(prev => {
+                          const next = prev ?? { host: false, guest: false };
+                          return multiProps.role === "host"
+                            ? { ...next, host: true }
+                            : { ...next, guest: true };
+                        });
+                      }}
+                      style={{
+                        padding: "10px 28px", borderRadius: 10, border: "none", cursor: "pointer",
+                        background: "linear-gradient(135deg,#2ecc71,#27ae60)",
+                        color: "#fff", fontSize: 14, fontWeight: 700, fontFamily: "inherit",
+                        boxShadow: "0 0 20px rgba(46,204,113,0.3)",
+                      }}
+                    >
+                      Jogar de novo
+                    </button>
+                  );
+                })()}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
               <button
-                onClick={() => { setPvpResult(null); router.push("/multiplayer"); }}
+                onClick={() => { setPvpResult(null); setPvpRematch(null); router.push("/multiplayer"); }}
                 style={{
-                  padding: "12px 24px", borderRadius: 10, border: "none", cursor: "pointer",
+                  padding: "10px 20px", borderRadius: 10, border: "none", cursor: "pointer",
                   background: "linear-gradient(135deg,#7b2ff7,#aa55ff)",
-                  color: "#fff", fontSize: 14, fontWeight: 700, fontFamily: "inherit",
+                  color: "#fff", fontSize: 13, fontWeight: 700, fontFamily: "inherit",
                 }}
               >
-                Novo Jogo
+                Novo Lobby
               </button>
               <button
-                onClick={() => { setPvpResult(null); reset(); }}
+                onClick={() => { setPvpResult(null); setPvpRematch(null); reset(); }}
                 style={{
-                  padding: "12px 24px", borderRadius: 10, cursor: "pointer",
+                  padding: "10px 20px", borderRadius: 10, cursor: "pointer",
                   background: "rgba(255,255,255,0.08)",
                   border: "1px solid rgba(255,255,255,0.15)",
-                  color: "rgba(255,255,255,0.7)", fontSize: 14, fontWeight: 600, fontFamily: "inherit",
+                  color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 600, fontFamily: "inherit",
                 }}
               >
                 Menu
@@ -501,7 +572,7 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
           Config
         </Button>
 
-        {multiProps?.mode === "pvp" && (
+        {multiProps && (
           <Button
             onClick={() => router.push("/multiplayer")}
             variant="contained"
@@ -756,11 +827,7 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
 
         <Button
           onClick={() => {
-            const w = window as unknown as Record<string, () => void>;
-            // trigger via key simulation
-            window.dispatchEvent(
-              new KeyboardEvent("keydown", { code: "KeyE" }),
-            );
+            window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyE" }));
             window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyE" }));
           }}
           disabled={!ultReady || ultActive}
@@ -1061,8 +1128,8 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
         />
       )}
 
-      {/* ── Game Over ── */}
-      {gameOver && (
+      {/* ── Game Over (solo / co-op; suppressed in PVP when pvpResult modal handles it) ── */}
+      {gameOver && !pvpResult && (
         <GameOverScreen
           score={score}
           wave={wave}
@@ -1075,8 +1142,8 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
         />
       )}
 
-      {/* ── Abandonar button — mobile PVP only ── */}
-      {isMobile && running && !gameOver && multiProps?.mode === "pvp" && (
+      {/* ── Abandonar button — mobile multiplayer ── */}
+      {isMobile && running && !gameOver && multiProps && (
         <button
           onTouchStart={(e) => { e.preventDefault(); router.push("/multiplayer"); }}
           style={{

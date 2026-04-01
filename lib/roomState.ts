@@ -12,11 +12,55 @@ export interface PlayerState {
   updatedAt: number; // Date.now()
 }
 
+/** Serialisable enemy snapshot (host-authoritative, used in co-op). */
+export interface EnemySync {
+  id: number;
+  x: number;
+  z: number;
+  hp: number;
+  maxHp: number;
+  type: number;
+}
+
+/** Serialisable pickup snapshot (host-authoritative). */
+export interface PickupSync {
+  id: number;
+  x: number;
+  z: number;
+  effect: string;
+  color: number;
+}
+
+/** A bullet position snapshot for remote-visibility rendering. */
+export interface BulletSync {
+  x: number;
+  z: number;
+  vx: number;
+  vz: number;
+}
+
 export interface RoomLive {
   host: PlayerState | null;
   guest: PlayerState | null;
   // Pending hits queued by the attacker, consumed by the victim on next sync
   pendingHits: { host: number; guest: number };
+  // Co-op: host broadcasts enemy positions each sync cycle
+  enemies: EnemySync[];
+  // Co-op: host broadcasts pickup positions
+  pickups: PickupSync[];
+  // Co-op: guest queues enemy hits for host to apply
+  pendingEnemyHits: Array<{ id: number; damage: number }>;
+  // Either player can signal co-op game over (partner died)
+  coopGameOver: boolean;
+  // PVP: Unix ms when the countdown started (set by host on first sync)
+  gameStartedAt: number | null;
+  // Rematch voting — both players must agree to restart
+  rematch: { host: boolean; guest: boolean };
+  // Incremented by host to signal a full game reset to both clients
+  resetSignal: number;
+  // Bullet positions from each player so the remote can render them visually
+  hostBullets: BulletSync[];
+  guestBullets: BulletSync[];
 }
 
 function getLiveMap(): Record<string, RoomLive> {
@@ -27,7 +71,20 @@ function getLiveMap(): Record<string, RoomLive> {
 
 export function getRoomLive(id: string): RoomLive {
   const map = getLiveMap();
-  if (!map[id]) map[id] = { host: null, guest: null, pendingHits: { host: 0, guest: 0 } };
+  if (!map[id]) map[id] = {
+    host: null,
+    guest: null,
+    pendingHits: { host: 0, guest: 0 },
+    enemies: [],
+    pickups: [],
+    pendingEnemyHits: [],
+    coopGameOver: false,
+    gameStartedAt: null,
+    rematch: { host: false, guest: false },
+    resetSignal: 0,
+    hostBullets: [],
+    guestBullets: [],
+  };
   return map[id];
 }
 

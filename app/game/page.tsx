@@ -17,11 +17,10 @@ const GameScene = dynamic(() => import("@/components/game/GameScene"), {
     }}>
       {/* Glow blobs */}
       <div style={{ position: "absolute", top: "10%", left: "10%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(123,47,247,0.16) 0%, transparent 70%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", bottom: "10%", right: "8%", width: 240, height: 240, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,195,255,0.1) 0%, transparent 70%)", pointerEvents: "none" }} />
 
       <div style={{
         fontSize: "clamp(22px, 6vw, 36px)", fontWeight: 900, letterSpacing: 3,
-        background: "linear-gradient(135deg, #fff, #dd99ff)",
+        background: "linear-gradient(135deg, #fff, #aa55ff)",
         WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
         textAlign: "center", padding: "0 20px",
       }}>
@@ -33,7 +32,7 @@ const GameScene = dynamic(() => import("@/components/game/GameScene"), {
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
         {[0, 1, 2].map(i => (
           <div key={i} style={{
-            width: 7, height: 7, borderRadius: "50%", background: "rgba(170,102,255,0.5)",
+            width: 7, height: 7, borderRadius: "50%", background: "rgba(123,47,247,0.5)",
             animation: `splashPulse 1.2s ease-in-out ${i * 0.2}s infinite`,
           }} />
         ))}
@@ -61,8 +60,7 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
       opacity: fade ? 0 : 1, transition: "opacity 0.7s ease",
     }}>
       {/* Glow blobs */}
-      <div style={{ position: "absolute", top: "8%", left: "8%", width: 350, height: 350, borderRadius: "50%", background: "radial-gradient(circle, rgba(123,47,247,0.2) 0%, transparent 70%)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", bottom: "8%", right: "6%", width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,195,255,0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", top: "8%", left: "8%", width: 350, height: 350, borderRadius: "50%", background: "radial-gradient(circle, rgba(123,47,247,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
 
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
         <div style={{
@@ -73,14 +71,14 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
         <div style={{
           fontSize: "clamp(26px, 7vw, 44px)", fontWeight: 900, letterSpacing: "clamp(2px, 1vw, 5px)",
           fontFamily: "'Segoe UI', 'Inter', sans-serif",
-          background: "linear-gradient(135deg, #ffffff, #dd99ff)",
+          background: "linear-gradient(135deg, #fff, #aa55ff)",
           WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
           textAlign: "center", padding: "0 20px", lineHeight: 1.1,
         }}>Last Stand Arena</div>
 
         <div style={{
           width: "60%", height: 1, marginTop: 20, marginBottom: 24,
-          background: "linear-gradient(90deg, transparent, rgba(170,102,255,0.4), transparent)",
+          background: "linear-gradient(90deg, transparent, rgba(123,47,247,0.4), transparent)",
         }} />
 
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", letterSpacing: 3, fontFamily: "monospace", marginBottom: 10 }}>
@@ -89,7 +87,7 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
 
         <div style={{
           fontSize: "clamp(20px, 5vw, 28px)", fontWeight: 700,
-          background: "linear-gradient(135deg, #fff, #aaddff)",
+          background: "linear-gradient(135deg, #fff, #aa55ff)",
           WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
           fontFamily: "'Inter', 'Segoe UI', sans-serif", letterSpacing: 1,
         }}>Jerry Alafo</div>
@@ -98,7 +96,7 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
           {[0, 1, 2].map(i => (
             <div key={i} style={{
               width: 7, height: 7, borderRadius: "50%",
-              background: "rgba(170,102,255,0.5)",
+              background: "rgba(123,47,247,0.5)",
               animation: `splashPulse 1.2s ease-in-out ${i * 0.2}s infinite`,
             }} />
           ))}

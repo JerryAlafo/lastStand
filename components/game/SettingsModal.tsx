@@ -61,7 +61,7 @@ function SettingRow({
         style={{
           fontSize: 10,
           letterSpacing: 2,
-          color: "rgba(170,102,255,0.65)",
+          color: "rgba(200,150,255,0.75)",
           textTransform: "uppercase",
           marginBottom: 7,
           fontFamily: "monospace",
@@ -191,7 +191,7 @@ export default function SettingsModal({
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <Phone size={18} color="#aa66ff" />
+              <Phone size={18} color="#aa55ff" />
               <span style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>
                 Contacto
               </span>
@@ -449,7 +449,7 @@ export default function SettingsModal({
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Settings size={19} color="#aa66ff" />
+            <Settings size={19} color="#aa55ff" />
             <span
               style={{
                 fontSize: 17,
@@ -484,7 +484,7 @@ export default function SettingsModal({
               style={{
                 fontSize: 10,
                 letterSpacing: 3,
-                color: "rgba(170,102,255,0.6)",
+                color: "rgba(200,150,255,0.75)",
                 textTransform: "uppercase",
                 marginBottom: 14,
                 fontFamily: "monospace",
@@ -628,7 +628,7 @@ export default function SettingsModal({
               marginBottom: 12,
             }}
           >
-            <UserCog size={16} color="#aa66ff" />
+            <UserCog size={16} color="#aa55ff" />
             <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>
               Alterar Username
             </span>

@@ -101,7 +101,7 @@ export default function ContactPage() {
           height: 260,
           borderRadius: "50%",
           background:
-            "radial-gradient(circle, rgba(0,195,255,0.10) 0%, transparent 70%)",
+            "radial-gradient(circle, rgba(123,47,247,0.08) 0%, transparent 70%)",
           pointerEvents: "none",
         }}
       />
@@ -181,7 +181,7 @@ export default function ContactPage() {
               border: "1px solid rgba(123,47,247,0.3)",
               borderRadius: 10,
               fontSize: 11,
-              color: "#aa66ff",
+              color: "#aa55ff",
               letterSpacing: 1,
               textTransform: "uppercase",
             }}

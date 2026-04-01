@@ -86,7 +86,6 @@ export default function MultiplayerPage() {
     }}>
       {/* Glow blobs */}
       <div style={{ position: "fixed", top: "8%", left: "8%", width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(123,47,247,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
-      <div style={{ position: "fixed", bottom: "10%", right: "8%", width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(0,195,255,0.1) 0%, transparent 70%)", pointerEvents: "none" }} />
 
       <Box sx={{ width: "100%", maxWidth: 500, position: "relative", zIndex: 1 }}>
         {/* Back */}
@@ -101,15 +100,15 @@ export default function MultiplayerPage() {
 
         {/* Header */}
         <Box sx={{ textAlign: "center", mb: 4 }}>
-          <Typography sx={{ fontSize: 11, letterSpacing: 4, color: "rgba(200,150,255,0.6)", textTransform: "uppercase", fontFamily: "monospace", mb: 1 }}>
+          <Typography sx={{ fontSize: 11, letterSpacing: 4, color: "rgba(200,150,255,0.75)", textTransform: "uppercase", fontFamily: "monospace", mb: 1 }}>
             Modo Multiplayer
           </Typography>
-          <Typography sx={{ fontSize: 28, fontWeight: 900, background: "linear-gradient(135deg,#fff,#cc88ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          <Typography sx={{ fontSize: 28, fontWeight: 900, background: "linear-gradient(135deg,#fff,#aa55ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
             Escolhe o modo
           </Typography>
           {session?.user?.username && (
             <Typography sx={{ fontSize: 13, color: "rgba(255,255,255,0.35)", mt: 1 }}>
-              A jogar como <span style={{ color: "#aa66ff", fontWeight: 700 }}>{session.user.username}</span>
+              A jogar como <span style={{ color: "#aa55ff", fontWeight: 700 }}>{session.user.username}</span>
             </Typography>
           )}
         </Box>

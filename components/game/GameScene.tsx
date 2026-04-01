@@ -196,11 +196,15 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
     if (!mounted || !mountRef.current) return;
     const el = mountRef.current;
     const isMobile = window.matchMedia("(pointer: coarse)").matches;
+    const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: !isMobile });
-    renderer.setPixelRatio(isMobile ? 1 : Math.min(devicePixelRatio, 2));
-    renderer.shadowMap.enabled = !isMobile;
+    // Renderer — aggressive pixel ratio cap on iOS/mobile for smooth framerate
+    const renderer = new THREE.WebGLRenderer({
+      antialias: !isMobile && !isIOS,
+      powerPreference: "high-performance",
+    });
+    renderer.setPixelRatio(isIOS ? 1 : isMobile ? Math.min(devicePixelRatio, 1.5) : Math.min(devicePixelRatio, 2));
+    renderer.shadowMap.enabled = !isMobile && !isIOS;
     renderer.setClearColor(0x050010);
     renderer.setSize(el.clientWidth, el.clientHeight);
     el.appendChild(renderer.domElement);
@@ -685,6 +689,8 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
 
     // Game objects
     const enemies: Enemy[] = [];
+    let enemyIdCounter = 0;
+    let pickupIdCounter = 0;
     const bullets: Bullet[] = [];
     const pickups: Pickup[] = [];
     const particles: Particle[] = [];
@@ -772,6 +778,7 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
       );
       scene.add(group);
       enemies.push({
+        id: ++enemyIdCounter,
         mesh: group,
         hp: finalHp,
         maxHp: finalHp,
@@ -800,6 +807,7 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
       m.position.set(x, 0.5, z);
       scene.add(m);
       pickups.push({
+        id: ++pickupIdCounter,
         mesh: m,
         effect: t.effect,
         name: t.name,
@@ -869,20 +877,35 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
     let syncIntervalId: ReturnType<typeof setInterval> | null = null;
     let remoteRig: ReturnType<typeof buildPlayerRig> | null = null;
     let pendingRemoteHits = 0; // hits queued to send to remote on next sync
+    // Co-op: guest queues enemy hits to send to host
+    let pendingEnemyHitsBuffer: Array<{ id: number; damage: number }> = [];
+    // Co-op: guest signals pickup removal
+    let removePickupIdBuffer: number | null = null;
+    // Co-op: track if we already sent the coopGameOver signal
+    let coopGameOverSent = false;
+    // Used to detect resetSignal changes from server
+    let lastResetSignal = 0;
+    // Tracks whether we've already sent our death notification (prevents duplicate win records)
+    let deathSynced = false;
 
-    // PVP countdown — blocks movement/shooting for 3 s at game start
-    const pvp = { countdownActive: false };
-    const pvpTimeouts: ReturnType<typeof setTimeout>[] = [];
+    // PVP countdown — driven by server gameStartedAt so both clients are in sync
+    // countdownActive blocks movement and auto-fire
+    const pvp = { countdownActive: multiProps?.mode === "pvp" };
     if (multiProps?.mode === "pvp") {
-      pvp.countdownActive = true;
+      // Show initial "3" immediately while waiting for server ACK
       (window as unknown as Record<string, unknown>).__pvpCountdown = 3;
-      pvpTimeouts.push(setTimeout(() => { (window as unknown as Record<string, unknown>).__pvpCountdown = 2; }, 1000));
-      pvpTimeouts.push(setTimeout(() => { (window as unknown as Record<string, unknown>).__pvpCountdown = 1; }, 2000));
-      pvpTimeouts.push(setTimeout(() => {
-        delete (window as unknown as Record<string, unknown>).__pvpCountdown;
-        pvp.countdownActive = false;
-      }, 3000));
     }
+
+    // Co-op guest: maintain remote enemy meshes keyed by enemy id
+    type RemoteEnemy = ReturnType<typeof buildEnemyRig> & { targetX: number; targetZ: number; animOffset: number };
+    const remoteEnemyMap = new Map<number, RemoteEnemy>();
+    // Co-op guest: remote pickup meshes + their effect data
+    const remotePickupMap = new Map<number, THREE.Mesh>();
+    const remotePickupEffects = new Map<number, { effect: string; color: number; name: string }>();
+    // Remote bullet meshes (visual only, no collision)
+    const remoteBulletMeshes: THREE.Mesh[] = [];
+    const remoteBulletGeo = new THREE.SphereGeometry(0.1, 4, 4);
+    const remoteBulletMat = new THREE.MeshBasicMaterial({ color: 0x55aaff, transparent: true, opacity: 0.75 });
 
     if (multiProps) {
       remoteRig = buildPlayerRig();
@@ -894,56 +917,292 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
 
       syncIntervalId = setInterval(async () => {
         const s = storeRef.current;
-        // Pause sync while game over (keeps interval alive for rematch)
-        if (s.gameOver) return;
-        // Skip while paused / on main menu
-        if (!s.running) return;
+        // Skip while on main menu (not started yet)
+        if (!s.running && !s.gameOver) return;
         try {
-          const hitsToSend = pendingRemoteHits;
-          pendingRemoteHits = 0;
+          const hitsToSend = s.gameOver ? 0 : pendingRemoteHits;
+          if (!s.gameOver) pendingRemoteHits = 0;
+
+          const body: Record<string, unknown> = {
+            x: playerMesh.position.x,
+            z: playerMesh.position.z,
+            angle: playerMesh.rotation.y,
+            hp: s.hp,
+            score: s.score,
+            kills: s.kills,
+            hitRemote: hitsToSend,
+          };
+
+          // Host: broadcast enemy + pickup positions for co-op
+          if (multiProps!.role === "host" && multiProps!.mode === "coop") {
+            body.enemies = enemies.map(e => ({
+              id: e.id,
+              x: e.mesh.position.x,
+              z: e.mesh.position.z,
+              hp: e.hp,
+              maxHp: e.maxHp,
+              type: e.type,
+            }));
+            body.pickups = pickups.map(p => ({
+              id: p.id,
+              x: p.mesh.position.x,
+              z: p.mesh.position.z,
+              effect: p.effect,
+              color: p.color,
+            }));
+          }
+
+          // Host: start PVP countdown clock on server (only once)
+          if (multiProps!.role === "host" && multiProps!.mode === "pvp") {
+            body.startCountdown = true;
+          }
+
+          // Rematch vote: send once when flagged by HUD
+          const w = window as unknown as Record<string, unknown>;
+          if (w.__pvpRematchVote) {
+            body.rematchVote = true;
+            delete w.__pvpRematchVote;
+          }
+          // Host sends reset when both voted
+          if (multiProps!.role === "host" && w.__pvpTriggerReset) {
+            body.resetGame = true;
+            delete w.__pvpTriggerReset;
+          }
+
+          // Co-op: guest sends queued enemy hits
+          if (multiProps!.role === "guest" && pendingEnemyHitsBuffer.length > 0) {
+            body.enemyHits = pendingEnemyHitsBuffer.splice(0);
+          }
+          // Co-op: guest signals pickup removal
+          if (multiProps!.role === "guest" && removePickupIdBuffer !== null) {
+            body.removePickupId = removePickupIdBuffer;
+            removePickupIdBuffer = null;
+          }
+          // Co-op game over signal
+          if (multiProps!.mode === "coop" && s.gameOver && !coopGameOverSent) {
+            coopGameOverSent = true;
+            body.coopGameOver = true;
+          }
+
+          // Bullet sync for remote visual rendering
+          if (multiProps!.mode === "coop") {
+            if (multiProps!.role === "host") {
+              body.hostBullets = bullets.map(b => ({ x: b.mesh.position.x, z: b.mesh.position.z, vx: b.vx, vz: b.vz }));
+            } else {
+              body.guestBullets = bullets.map(b => ({ x: b.mesh.position.x, z: b.mesh.position.z, vx: b.vx, vz: b.vz }));
+            }
+          }
+
           const res = await fetch(`/api/rooms/${multiProps!.roomId}/sync`, {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-              x: playerMesh.position.x,
-              z: playerMesh.position.z,
-              angle: playerMesh.rotation.y,
-              hp: s.hp,
-              score: s.score,
-              kills: s.kills,
-              hitRemote: hitsToSend,
-            }),
+            body: JSON.stringify(body),
           });
           if (res.ok) {
             const data = (await res.json()) as {
               host?: { x: number; z: number; angle: number; hp: number; updatedAt: number } | null;
               guest?: { x: number; z: number; angle: number; hp: number; updatedAt: number } | null;
               incomingHits?: number;
+              enemies?: Array<{ id: number; x: number; z: number; hp: number; maxHp: number; type: number }>;
+              pickups?: Array<{ id: number; x: number; z: number; effect: string; color: number }>;
+              pendingEnemyHits?: Array<{ id: number; damage: number }>;
+              coopGameOver?: boolean;
+              gameStartedAt?: number | null;
+              rematch?: { host: boolean; guest: boolean };
+              resetSignal?: number;
+              hostBullets?: Array<{ x: number; z: number; vx: number; vz: number }>;
+              guestBullets?: Array<{ x: number; z: number; vx: number; vz: number }>;
             };
+
+            // ── Synced PVP countdown ──
+            if (data.gameStartedAt) {
+              const elapsed = Date.now() - data.gameStartedAt;
+              const cdVal = Math.max(0, 3 - Math.floor(elapsed / 1000));
+              if (cdVal > 0) {
+                w.__pvpCountdown = cdVal;
+                pvp.countdownActive = true;
+              } else {
+                delete w.__pvpCountdown;
+                pvp.countdownActive = false;
+              }
+            }
+
+            // ── Reset signal: server incremented → full restart ──
+            const sig = data.resetSignal ?? 0;
+            if (sig > lastResetSignal) {
+              lastResetSignal = sig;
+              deathSynced = false;
+              coopGameOverSent = false;
+              pendingRemoteHits = 0;
+              pendingEnemyHitsBuffer.length = 0;
+              delete w.__pvpResult;
+              delete w.__pvpRematch;
+              // Clear all local enemies + pickups
+              for (const e of enemies) scene.remove(e.mesh);
+              enemies.length = 0;
+              for (const p of pickups) scene.remove(p.mesh);
+              pickups.length = 0;
+              // Clear remote enemies
+              remoteEnemyMap.forEach(re => scene.remove(re.group));
+              remoteEnemyMap.clear();
+              // Clear remote pickups
+              remotePickupMap.forEach(m => scene.remove(m));
+              remotePickupMap.clear();
+              remotePickupEffects.clear();
+              // Clear remote bullets
+              for (const rb of remoteBulletMeshes) scene.remove(rb);
+              remoteBulletMeshes.length = 0;
+              storeRef.current.reset();
+              return;
+            }
+
+            // ── Remote player position ──
             const other = multiProps!.role === "host" ? data.guest : data.host;
             if (other) {
               remoteTargetX = other.x;
               remoteTargetZ = other.z;
               remoteTargetAngle = other.angle;
-              // Remote player died → we won; stop queuing hits on them
-              if (other.hp === 0 && !(window as any).__pvpResult) {
-                (window as any).__pvpResult = "win";
+              // PVP: remote player died → we won
+              if (
+                multiProps!.mode === "pvp" &&
+                other.hp === 0 &&
+                !deathSynced &&
+                !(w.__pvpResult)
+              ) {
+                w.__pvpResult = "win";
                 pendingRemoteHits = 0;
-                // Record PVP win on the server
                 fetch("/api/pvp/win", { method: "POST" }).catch(() => undefined);
               }
               // Remote went stale >5s → abandoned
-              if (Date.now() - other.updatedAt > 5000 && !(window as any).__pvpResult) {
-                (window as any).__pvpResult = "abandoned";
+              if (
+                multiProps!.mode === "pvp" &&
+                Date.now() - other.updatedAt > 5000 &&
+                !(w.__pvpResult)
+              ) {
+                w.__pvpResult = "abandoned";
               }
             }
-            // Apply damage dealt by the remote player
-            if (data.incomingHits && data.incomingHits > 0) {
+
+            // Push own death to server once so winner detects it
+            if (s.gameOver && !deathSynced) {
+              deathSynced = true;
+            }
+
+            // ── Incoming hits (only apply if still alive) ──
+            if (!s.gameOver && data.incomingHits && data.incomingHits > 0) {
               storeRef.current.damage(data.incomingHits);
+              // If PVP damage killed us, show loss modal (suppress solo GameOverScreen)
+              if (multiProps!.mode === "pvp" && storeRef.current.hp <= 0) {
+                (w as Record<string, unknown>).__pvpResult = "loss";
+              }
+            }
+
+            // ── Co-op guest: sync enemy positions ──
+            if (multiProps!.mode === "coop" && multiProps!.role === "guest" && data.enemies) {
+              const seenIds = new Set<number>();
+              for (const es of data.enemies) {
+                seenIds.add(es.id);
+                if (remoteEnemyMap.has(es.id)) {
+                  // Update position target
+                  const re = remoteEnemyMap.get(es.id)!;
+                  re.targetX = es.x;
+                  re.targetZ = es.z;
+                  // Update HP bar
+                  const ratio = Math.max(0, es.hp / es.maxHp);
+                  re.hpFg.scale.x = ratio;
+                  re.hpFg.position.x = -(0.9 * (1 - ratio)) / 2;
+                } else {
+                  // Spawn new remote enemy mesh
+                  const rig = buildEnemyRig(es.type);
+                  rig.group.position.set(es.x, 0, es.z);
+                  scene.add(rig.group);
+                  remoteEnemyMap.set(es.id, { ...rig, targetX: es.x, targetZ: es.z, animOffset: Math.random() * Math.PI * 2 });
+                }
+              }
+              // Remove enemies that disappeared on host
+              for (const [id, re] of Array.from(remoteEnemyMap)) {
+                if (!seenIds.has(id)) {
+                  spawnParticles(re.group.position.clone(), re.col, 5);
+                  scene.remove(re.group);
+                  remoteEnemyMap.delete(id);
+                }
+              }
+            }
+
+            // ── Co-op guest: sync pickup positions ──
+            if (multiProps!.mode === "coop" && multiProps!.role === "guest" && data.pickups) {
+              const seenPids = new Set<number>();
+              for (const ps of data.pickups) {
+                seenPids.add(ps.id);
+                if (!remotePickupMap.has(ps.id)) {
+                  const pm = new THREE.Mesh(
+                    pickupGeo,
+                    new THREE.MeshStandardMaterial({
+                      color: ps.color,
+                      emissive: new THREE.Color(ps.color).multiplyScalar(0.5),
+                      roughness: 0.3,
+                    }),
+                  );
+                  pm.position.set(ps.x, 0.5, ps.z);
+                  scene.add(pm);
+                  remotePickupMap.set(ps.id, pm);
+                  const pu = puTypes.find(t => t.effect === ps.effect) ?? { name: ps.effect, color: ps.color, effect: ps.effect };
+                  remotePickupEffects.set(ps.id, pu);
+                }
+              }
+              // Remove pickups no longer present on host
+              for (const [pid, pmesh] of Array.from(remotePickupMap)) {
+                if (!seenPids.has(pid)) {
+                  scene.remove(pmesh);
+                  remotePickupMap.delete(pid);
+                  remotePickupEffects.delete(pid);
+                }
+              }
+            }
+
+            // ── Co-op host: apply enemy hits from guest ──
+            if (multiProps!.mode === "coop" && multiProps!.role === "host" && data.pendingEnemyHits && data.pendingEnemyHits.length > 0) {
+              for (const hit of data.pendingEnemyHits) {
+                const idx = enemies.findIndex(e => e.id === hit.id);
+                if (idx >= 0) {
+                  enemies[idx].hp -= hit.damage;
+                  enemies[idx].hitTimer = 7;
+                  const ratio = Math.max(0, enemies[idx].hp / enemies[idx].maxHp);
+                  enemies[idx].hpFg.scale.x = ratio;
+                  enemies[idx].hpFg.position.x = -(0.9 * (1 - ratio)) / 2;
+                  if (enemies[idx].hp <= 0) killEnemy(idx);
+                }
+              }
+            }
+
+            // ── Co-op game over: partner died ──
+            if (multiProps!.mode === "coop" && data.coopGameOver) {
+              const cs = storeRef.current;
+              if (!cs.gameOver) {
+                cs.damage(100); // force local game over
+              }
+            }
+
+            // ── Remote bullets (visual only) ──
+            if (multiProps!.mode === "coop") {
+              const remoteBulletsData = (multiProps!.role === "host" ? data.guestBullets : data.hostBullets) ?? [];
+              for (const rb of remoteBulletMeshes) scene.remove(rb);
+              remoteBulletMeshes.length = 0;
+              for (const rb of remoteBulletsData) {
+                const m = new THREE.Mesh(remoteBulletGeo, remoteBulletMat);
+                m.position.set(rb.x, 0.65, rb.z);
+                scene.add(m);
+                remoteBulletMeshes.push(m);
+              }
+            }
+
+            // ── Rematch state → expose to HUD ──
+            if (data.rematch) {
+              w.__pvpRematch = data.rematch;
             }
           } else {
             // Failed to send — put hits back
-            pendingRemoteHits += hitsToSend;
+            if (!s.gameOver) pendingRemoteHits += hitsToSend;
           }
         } catch { /* ignore */ }
       }, 200);
@@ -1035,8 +1294,27 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
         remoteRig.root.rotation.y += (remoteTargetAngle - remoteRig.root.rotation.y) * 0.2;
       }
 
-      // Wave manager — skip enemy spawning in PVP mode
-      if (!multiProps || multiProps.mode !== "pvp") {
+      // Co-op guest: interpolate and animate remote enemy meshes
+      if (multiProps?.mode === "coop" && multiProps.role === "guest") {
+        remoteEnemyMap.forEach(re => {
+          re.group.position.x += (re.targetX - re.group.position.x) * 0.2;
+          re.group.position.z += (re.targetZ - re.group.position.z) * 0.2;
+          re.group.rotation.y += 0.025;
+          const esw = Math.sin(frame * 0.24 + re.animOffset) * 0.7;
+          re.arms.forEach(a => {
+            a.upper.rotation.x = esw * a.side * 0.35;
+            a.lower.rotation.x = Math.max(0, -esw * a.side) * 0.4;
+          });
+          re.legs.forEach(leg => {
+            const ls = leg.side === 1 ? esw : -esw;
+            leg.upper.rotation.x = ls * 0.45;
+            leg.lower.rotation.x = Math.max(0, -ls) * 0.4 + 0.05;
+          });
+        });
+      }
+
+      // Wave manager — solo, or host in co-op only (guest receives enemies via sync)
+      if (!multiProps || (multiProps.mode === "coop" && multiProps.role === "host")) {
         if (s.waveTimer === 0) {
           const shouldSpawn = s.tickSpawn();
           if (shouldSpawn) spawnEnemy(s.wave);
@@ -1155,11 +1433,20 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
       s.tickFire();
       if (!pvp.countdownActive && s.fireTimer >= s.fireRate) {
         s.resetFire();
-        // In PVP target the remote player; in co-op/solo target nearest enemy
+        // PVP: target remote player; co-op guest: target remote enemy; co-op host/solo: nearest local enemy
         let tx: number | null = null, tz: number | null = null;
         if (multiProps?.mode === "pvp" && remoteRig) {
           tx = remoteRig.root.position.x;
           tz = remoteRig.root.position.z;
+        } else if (multiProps?.mode === "coop" && multiProps.role === "guest") {
+          // Guest targets remote enemies
+          let bestD = 999;
+          remoteEnemyMap.forEach(re => {
+            const ddx = re.group.position.x - playerMesh.position.x;
+            const ddz = re.group.position.z - playerMesh.position.z;
+            const dd = Math.sqrt(ddx * ddx + ddz * ddz);
+            if (dd < bestD) { bestD = dd; tx = re.group.position.x; tz = re.group.position.z; }
+          });
         } else {
           const tgt = getNearestEnemy();
           if (tgt) { tx = tgt.mesh.position.x; tz = tgt.mesh.position.z; }
@@ -1205,21 +1492,35 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
             hit = true;
           }
         }
-        // In non-PVP, check collision against enemies
+        // In non-PVP, check collision against enemies (local for host/solo, remote for co-op guest)
         if (!hit) {
-          for (let ei = enemies.length - 1; ei >= 0; ei--) {
-            const en = enemies[ei];
-            const dx = b.mesh.position.x - en.mesh.position.x;
-            const dz = b.mesh.position.z - en.mesh.position.z;
-            if (Math.sqrt(dx * dx + dz * dz) < 0.75) {
-              en.hp--;
-              en.hitTimer = 7;
-              const ratio = Math.max(0, en.hp / en.maxHp);
-              en.hpFg.scale.x = ratio;
-              en.hpFg.position.x = -(0.9 * (1 - ratio)) / 2;
-              if (en.hp <= 0) killEnemy(ei);
-              hit = true;
-              break;
+          if (multiProps?.mode === "coop" && multiProps.role === "guest") {
+            // Guest: hit remote enemies, queue damage for host to apply
+            for (const [eid, re] of Array.from(remoteEnemyMap)) {
+              const ddx = b.mesh.position.x - re.group.position.x;
+              const ddz = b.mesh.position.z - re.group.position.z;
+              if (Math.sqrt(ddx * ddx + ddz * ddz) < 0.75) {
+                pendingEnemyHitsBuffer.push({ id: eid, damage: 1 });
+                spawnParticles(b.mesh.position.clone(), re.col, 4);
+                hit = true;
+                break;
+              }
+            }
+          } else {
+            for (let ei = enemies.length - 1; ei >= 0; ei--) {
+              const en = enemies[ei];
+              const dx = b.mesh.position.x - en.mesh.position.x;
+              const dz = b.mesh.position.z - en.mesh.position.z;
+              if (Math.sqrt(dx * dx + dz * dz) < 0.75) {
+                en.hp--;
+                en.hitTimer = 7;
+                const ratio = Math.max(0, en.hp / en.maxHp);
+                en.hpFg.scale.x = ratio;
+                en.hpFg.position.x = -(0.9 * (1 - ratio)) / 2;
+                if (en.hp <= 0) killEnemy(ei);
+                hit = true;
+                break;
+              }
             }
           }
         }
@@ -1233,8 +1534,23 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
       playerDmgTimer = Math.max(0, playerDmgTimer - 1);
       for (let ei = enemies.length - 1; ei >= 0; ei--) {
         const en = enemies[ei];
-        const dx = playerMesh.position.x - en.mesh.position.x;
-        const dz = playerMesh.position.z - en.mesh.position.z;
+        // In co-op, chase the nearest player (local or remote)
+        let targetX = playerMesh.position.x;
+        let targetZ = playerMesh.position.z;
+        if (multiProps?.mode === "coop" && remoteRig) {
+          const dlx = playerMesh.position.x - en.mesh.position.x;
+          const dlz = playerMesh.position.z - en.mesh.position.z;
+          const dLocal = Math.sqrt(dlx * dlx + dlz * dlz);
+          const drx = remoteRig.root.position.x - en.mesh.position.x;
+          const drz = remoteRig.root.position.z - en.mesh.position.z;
+          const dRemote = Math.sqrt(drx * drx + drz * drz);
+          if (dRemote < dLocal) {
+            targetX = remoteRig.root.position.x;
+            targetZ = remoteRig.root.position.z;
+          }
+        }
+        const dx = targetX - en.mesh.position.x;
+        const dz = targetZ - en.mesh.position.z;
         const d = Math.sqrt(dx * dx + dz * dz);
         en.mesh.position.x += (dx / d) * en.speed;
         en.mesh.position.z += (dz / d) * en.speed;
@@ -1263,7 +1579,7 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
           }
         }
 
-        // Contact damage
+        // Contact damage (local enemies vs local player)
         if (d < 1.0 && playerDmgTimer === 0) {
           playerDmgTimer = 45;
           storeRef.current.damage(1);
@@ -1275,6 +1591,22 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
         // HP bars face camera
         const hpBarGroup = en.hpFg.parent;
         hpBarGroup?.lookAt(camera.position);
+      }
+
+      // Co-op guest: contact damage from remote enemies
+      if (multiProps?.mode === "coop" && multiProps.role === "guest" && playerDmgTimer === 0) {
+        remoteEnemyMap.forEach(re => {
+          if (playerDmgTimer > 0) return;
+          const edx = re.group.position.x - playerMesh.position.x;
+          const edz = re.group.position.z - playerMesh.position.z;
+          if (Math.sqrt(edx * edx + edz * edz) < 1.0) {
+            playerDmgTimer = 45;
+            storeRef.current.damage(1);
+            spawnParticles(playerMesh.position.clone(), 0xe74c3c, 5);
+            camera.position.x += (Math.random() - 0.5) * 0.6;
+            camera.position.z += (Math.random() - 0.5) * 0.6;
+          }
+        });
       }
 
       // Pickups
@@ -1297,6 +1629,30 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
         if (pk.life <= 0) {
           scene.remove(pk.mesh);
           pickups.splice(pi, 1);
+        }
+      }
+
+      // Co-op guest: animate + collect remote pickups (from host)
+      if (multiProps?.mode === "coop" && multiProps.role === "guest") {
+        let rpi = 0;
+        for (const [pid, pmesh] of Array.from(remotePickupMap)) {
+          pmesh.rotation.y += 0.06;
+          pmesh.position.y = 0.5 + Math.sin(frame * 0.06 + rpi) * 0.18;
+          const pdx = pmesh.position.x - playerMesh.position.x;
+          const pdz = pmesh.position.z - playerMesh.position.z;
+          if (Math.sqrt(pdx * pdx + pdz * pdz) < 1.1) {
+            const pu = remotePickupEffects.get(pid);
+            if (pu) {
+              storeRef.current.applyEffect(pu.effect as any);
+              spawnParticles(pmesh.position.clone(), pu.color, 8);
+              storeRef.current.setWaveMessage(pu.name + "!");
+            }
+            scene.remove(pmesh);
+            remotePickupMap.delete(pid);
+            remotePickupEffects.delete(pid);
+            removePickupIdBuffer = pid;
+          }
+          rpi++;
         }
       }
 
@@ -1361,8 +1717,14 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
     return () => {
       cancelAnimationFrame(raf);
       if (syncIntervalId) clearInterval(syncIntervalId);
-      pvpTimeouts.forEach(t => clearTimeout(t));
       if (remoteRig) scene.remove(remoteRig.root);
+      remoteEnemyMap.forEach(re => scene.remove(re.group));
+      remoteEnemyMap.clear();
+      remotePickupMap.forEach(m => scene.remove(m));
+      remotePickupMap.clear();
+      remotePickupEffects.clear();
+      for (const rb of remoteBulletMeshes) scene.remove(rb);
+      remoteBulletMeshes.length = 0;
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("keyup", onKey);
       window.removeEventListener("resize", onResize);
@@ -1372,8 +1734,15 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
       delete w.__activateUlt;
       delete w.__pvpCountdown;
       delete w.__pvpResult;
+      delete w.__pvpRematch;
+      delete w.__pvpRematchVote;
+      delete w.__pvpTriggerReset;
       renderer.dispose();
       el.removeChild(renderer.domElement);
+      // Close the multiplayer room when leaving the game
+      if (multiProps) {
+        fetch(`/api/rooms/${multiProps.roomId}/close`, { method: "POST" }).catch(() => undefined);
+      }
     };
   }, [mounted]);
 

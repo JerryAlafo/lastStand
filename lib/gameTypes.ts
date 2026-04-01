@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 export interface Enemy {
+  id: number;
   mesh: THREE.Group;
   hp: number;
   maxHp: number;
@@ -23,6 +24,7 @@ export interface Bullet {
 }
 
 export interface Pickup {
+  id: number;
   mesh: THREE.Mesh;
   effect: string;
   name: string;
