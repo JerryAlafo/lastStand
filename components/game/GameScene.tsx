@@ -903,9 +903,14 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
     const remotePickupMap = new Map<number, THREE.Mesh>();
     const remotePickupEffects = new Map<number, { effect: string; color: number; name: string }>();
     // Remote bullet meshes (visual only, no collision)
+    // PVP = vermelho (inimigo); Co-op = azul claro (aliado)
     const remoteBulletMeshes: THREE.Mesh[] = [];
-    const remoteBulletGeo = new THREE.SphereGeometry(0.1, 4, 4);
-    const remoteBulletMat = new THREE.MeshBasicMaterial({ color: 0x55aaff, transparent: true, opacity: 0.75 });
+    const remoteBulletGeo = new THREE.SphereGeometry(0.13, 6, 6);
+    const remoteBulletMat = new THREE.MeshBasicMaterial({
+      color: multiProps?.mode === "pvp" ? 0xff3322 : 0x55aaff,
+      transparent: true,
+      opacity: 0.9,
+    });
 
     if (multiProps) {
       remoteRig = buildPlayerRig();
@@ -984,13 +989,11 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
             body.coopGameOver = true;
           }
 
-          // Bullet sync for remote visual rendering
-          if (multiProps!.mode === "coop") {
-            if (multiProps!.role === "host") {
-              body.hostBullets = bullets.map(b => ({ x: b.mesh.position.x, z: b.mesh.position.z, vx: b.vx, vz: b.vz }));
-            } else {
-              body.guestBullets = bullets.map(b => ({ x: b.mesh.position.x, z: b.mesh.position.z, vx: b.vx, vz: b.vz }));
-            }
+          // Bullet sync for remote visual rendering (coop + pvp)
+          if (multiProps!.role === "host") {
+            body.hostBullets = bullets.map(b => ({ x: b.mesh.position.x, z: b.mesh.position.z, vx: b.vx, vz: b.vz }));
+          } else {
+            body.guestBullets = bullets.map(b => ({ x: b.mesh.position.x, z: b.mesh.position.z, vx: b.vx, vz: b.vz }));
           }
 
           const res = await fetch(`/api/rooms/${multiProps!.roomId}/sync`, {
@@ -1091,9 +1094,9 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
             // ── Incoming hits (only apply if still alive) ──
             if (!s.gameOver && data.incomingHits && data.incomingHits > 0) {
               storeRef.current.damage(data.incomingHits);
-              // If PVP damage killed us, show loss modal (suppress solo GameOverScreen)
-              if (multiProps!.mode === "pvp" && storeRef.current.hp <= 0) {
-                (w as Record<string, unknown>).__pvpResult = "loss";
+              // Use getState() — storeRef.current é snapshot React antigo, não reflete damage() imediatamente
+              if (multiProps!.mode === "pvp" && useGameStore.getState().hp <= 0) {
+                w.__pvpResult = "loss";
               }
             }
 
@@ -1183,8 +1186,8 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
               }
             }
 
-            // ── Remote bullets (visual only) ──
-            if (multiProps!.mode === "coop") {
+            // ── Remote bullets visual (coop + pvp) ──
+            {
               const remoteBulletsData = (multiProps!.role === "host" ? data.guestBullets : data.hostBullets) ?? [];
               for (const rb of remoteBulletMeshes) scene.remove(rb);
               remoteBulletMeshes.length = 0;
@@ -1278,6 +1281,13 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
       renderer.render(scene, camera);
 
       const s = storeRef.current;
+
+      // PVP: fallback robusto — se o jogador morreu e ainda não há resultado definido, é derrota
+      if (multiProps?.mode === "pvp" && s.gameOver) {
+        const ww = window as unknown as Record<string, unknown>;
+        if (!ww.__pvpResult) ww.__pvpResult = "loss";
+      }
+
       if (!s.running) return;
 
       frame++;
