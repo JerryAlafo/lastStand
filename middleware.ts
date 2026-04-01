@@ -19,6 +19,8 @@ export default withAuth(
         const { pathname } = req.nextUrl;
         // Public routes — always allow
         if (["/login", "/register", "/contact", "/donate", "/stats"].includes(pathname)) return true;
+        // Multiplayer join is public (page handles its own auth inline)
+        if (pathname.startsWith("/multiplayer/join/")) return true;
         // Everything else requires a valid session
         return !!token;
       },

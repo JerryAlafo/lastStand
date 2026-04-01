@@ -1,9 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const GameScene = dynamic(() => import("@/components/game/GameScene"), {
   ssr: false,
@@ -115,26 +115,34 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
   );
 }
 
-export default function GamePage() {
+function GamePageInner() {
   const { status } = useSession();
   const router = useRouter();
+  const params = useSearchParams();
   const [showSplash, setShowSplash] = useState(true);
+
+  const roomId = params.get("room") ?? undefined;
+  const role   = (params.get("role") ?? undefined) as "host" | "guest" | undefined;
+  const mode   = (params.get("mode") ?? undefined) as "pvp" | "coop" | undefined;
+
+  const multiProps = roomId && role && mode ? { roomId, role, mode } : undefined;
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
   }, [status, router]);
 
   return (
-    <div
-      style={{
-        width: "100vw",
-        height: "100vh",
-        overflow: "hidden",
-        background: "#0a0008",
-      }}
-    >
+    <div style={{ width: "100vw", height: "100vh", overflow: "hidden", background: "#0a0008" }}>
       {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
-      <GameScene />
+      <GameScene multiProps={multiProps} />
     </div>
+  );
+}
+
+export default function GamePage() {
+  return (
+    <Suspense>
+      <GamePageInner />
+    </Suspense>
   );
 }

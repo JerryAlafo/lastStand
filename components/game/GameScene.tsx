@@ -4,262 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { useGameStore } from "@/lib/gameStore";
 import HUD from "./HUD";
+import { Enemy, Bullet, Pickup, Particle, MultiProps } from "@/lib/gameTypes";
+import { buildPlayerRig } from "@/lib/playerRig";
 
 // ---- CONSTANTS ----
 const AR = 18;
 const BULLET_SPEED = 0.35;
-const SKIN_TONES = [0xc68642, 0x8d5524, 0xf1c27d, 0xe0ac69, 0xd49560];
-
-// ---- TYPES ----
-interface Enemy {
-  mesh: THREE.Group;
-  hp: number;
-  maxHp: number;
-  speed: number;
-  type: number;
-  col: number;
-  hpFg: THREE.Mesh;
-  hitTimer: number;
-  dmgTimer: number;
-  arms: Array<{ upper: THREE.Group; lower: THREE.Group; side: number }>;
-  legs: Array<{ upper: THREE.Group; lower: THREE.Group; side: number }>;
-  animOffset: number;
-}
-
-interface Bullet {
-  mesh: THREE.Mesh;
-  vx: number;
-  vz: number;
-  life: number;
-}
-
-interface Pickup {
-  mesh: THREE.Mesh;
-  effect: string;
-  name: string;
-  color: number;
-  life: number;
-}
-
-interface Particle {
-  mesh: THREE.Mesh;
-  vx: number;
-  vy: number;
-  vz: number;
-  life: number;
-}
-
-// ---- PLAYER RIG ----
-function buildPlayerRig(): {
-  root: THREE.Group;
-  parts: Record<string, THREE.Object3D>;
-  materials: { skin: THREE.MeshStandardMaterial; shirt: THREE.MeshStandardMaterial; shorts: THREE.MeshStandardMaterial; shoe: THREE.MeshStandardMaterial };
-} {
-  const root = new THREE.Group();
-  const skin = SKIN_TONES[Math.floor(Math.random() * SKIN_TONES.length)];
-  const skinM = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.8 });
-  const shirtM = new THREE.MeshStandardMaterial({
-    color: 0x4a90d9,
-    roughness: 0.6,
-    emissive: new THREE.Color(0x0a1a3a),
-  });
-  const shortsM = new THREE.MeshStandardMaterial({
-    color: 0x1a2255,
-    roughness: 0.8,
-  });
-  const shoeM = new THREE.MeshStandardMaterial({
-    color: 0x111111,
-    roughness: 0.9,
-  });
-  const whiteM = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    roughness: 0.9,
-  });
-
-  // Torso
-  const torso = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.22, 0.18, 0.6, 8),
-    shirtM,
-  );
-  torso.position.y = 0.9;
-  torso.castShadow = true;
-  root.add(torso);
-
-  // Neck
-  const neck = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.07, 0.08, 0.14, 8),
-    skinM,
-  );
-  neck.position.y = 1.28;
-  root.add(neck);
-
-  // Head
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 12), skinM);
-  head.position.y = 1.56;
-  head.castShadow = true;
-  root.add(head);
-
-  // Eyes
-  for (let s of [-1, 1]) {
-    const eye = new THREE.Mesh(
-      new THREE.SphereGeometry(0.045, 7, 7),
-      new THREE.MeshBasicMaterial({ color: 0xffffff }),
-    );
-    eye.position.set(s * 0.1, 1.6, 0.2);
-    root.add(eye);
-    const pupil = new THREE.Mesh(
-      new THREE.SphereGeometry(0.026, 6, 6),
-      new THREE.MeshBasicMaterial({ color: 0x111111 }),
-    );
-    pupil.position.set(s * 0.1, 1.6, 0.224);
-    root.add(pupil);
-  }
-
-  // Hair
-  const hair = new THREE.Mesh(
-    new THREE.SphereGeometry(0.245, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.44),
-    new THREE.MeshStandardMaterial({ color: 0x1a0a00, roughness: 1 }),
-  );
-  hair.position.y = 1.56;
-  root.add(hair);
-
-  // Visor
-  const visor = new THREE.Mesh(
-    new THREE.BoxGeometry(0.38, 0.09, 0.14),
-    new THREE.MeshBasicMaterial({
-      color: 0x00ffff,
-      transparent: true,
-      opacity: 0.85,
-    }),
-  );
-  visor.position.set(0, 1.62, 0.21);
-  root.add(visor);
-
-  // Shoulders
-  for (let s of [-1, 1]) {
-    const sh = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 8), shirtM);
-    sh.position.set(s * 0.34, 1.1, 0);
-    root.add(sh);
-  }
-
-  // Upper arms
-  const uarmL = new THREE.Group();
-  uarmL.position.set(-0.34, 1.0, 0);
-  root.add(uarmL);
-  const uarmR = new THREE.Group();
-  uarmR.position.set(0.34, 1.0, 0);
-  root.add(uarmR);
-  const uaGeo = new THREE.CylinderGeometry(0.08, 0.07, 0.35, 7);
-  uarmL.add(Object.assign(new THREE.Mesh(uaGeo, shirtM), { castShadow: true }));
-  uarmR.add(Object.assign(new THREE.Mesh(uaGeo, shirtM), { castShadow: true }));
-
-  // Forearms
-  const farmL = new THREE.Group();
-  farmL.position.y = -0.22;
-  uarmL.add(farmL);
-  const farmR = new THREE.Group();
-  farmR.position.y = -0.22;
-  uarmR.add(farmR);
-  const faGeo = new THREE.CylinderGeometry(0.065, 0.058, 0.3, 7);
-  const fmL = new THREE.Mesh(faGeo, skinM);
-  fmL.position.y = -0.16;
-  farmL.add(fmL);
-  const fmR = new THREE.Mesh(faGeo, skinM);
-  fmR.position.y = -0.16;
-  farmR.add(fmR);
-  const hGeo = new THREE.SphereGeometry(0.07, 7, 7);
-  const hL = new THREE.Mesh(hGeo, skinM);
-  hL.position.y = -0.31;
-  farmL.add(hL);
-  const hR = new THREE.Mesh(hGeo, skinM);
-  hR.position.y = -0.31;
-  farmR.add(hR);
-
-  // Weapon held by player
-  const weapon = new THREE.Mesh(
-    new THREE.BoxGeometry(0.08, 0.08, 0.42),
-    new THREE.MeshStandardMaterial({
-      color: 0x444444,
-      roughness: 0.35,
-      metalness: 0.8,
-    }),
-  );
-  weapon.position.set(0.15, -0.32, 0.15);
-  weapon.rotation.set(-0.4, 0, 0);
-  farmR.add(weapon);
-
-  // Shorts
-  const shorts = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.21, 0.2, 0.38, 8),
-    shortsM,
-  );
-  shorts.position.y = 0.57;
-  root.add(shorts);
-  const stripe = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.212, 0.202, 0.05, 8),
-    whiteM,
-  );
-  stripe.position.y = 0.59;
-  root.add(stripe);
-
-  // Legs
-  const ulegs: { upper: THREE.Group; lower: THREE.Group; side: number }[] = [];
-  for (const s of [-1, 1] as const) {
-    const ug = new THREE.Group();
-    ug.position.set(s * 0.13, 0.36, 0);
-    const um = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.09, 0.08, 0.4, 7),
-      skinM,
-    );
-    um.castShadow = true;
-    ug.add(um);
-
-    const lg = new THREE.Group();
-    lg.position.y = -0.24;
-    const lm = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.07, 0.06, 0.36, 7),
-      skinM,
-    );
-    lm.position.y = -0.19;
-    lm.castShadow = true;
-    lg.add(lm);
-
-    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.1, 0.3), shoeM);
-    shoe.position.set(0, -0.38, 0.04);
-    lg.add(shoe);
-    const sole = new THREE.Mesh(
-      new THREE.BoxGeometry(0.16, 0.04, 0.31),
-      whiteM,
-    );
-    sole.position.set(0, -0.43, 0.04);
-    lg.add(sole);
-    const sock = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.075, 0.07, 0.13, 7),
-      whiteM,
-    );
-    sock.position.y = -0.28;
-    lg.add(sock);
-
-    ug.add(lg);
-    root.add(ug);
-    ulegs.push({ upper: ug, lower: lg, side: s });
-  }
-
-  // Glow ring
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.45, 0.045, 6, 22),
-    new THREE.MeshBasicMaterial({ color: 0x00ffff }),
-  );
-  ring.rotation.x = Math.PI / 2;
-  ring.position.y = 0.02;
-  root.add(ring);
-
-  return {
-    root,
-    parts: { uarmL, uarmR, farmL, farmR, ring, ulegsData: ulegs as any },
-    materials: { skin: skinM, shirt: shirtM, shorts: shortsM, shoe: shoeM },
-  };
-}
 
 // ---- ENEMY RIG ----
 function buildEnemyRig(type: number): {
@@ -420,7 +170,7 @@ function buildEnemyRig(type: number): {
 }
 
 // ---- MAIN COMPONENT ----
-export default function GameScene() {
+export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef<any>({});
   const store = useGameStore();
@@ -432,6 +182,15 @@ export default function GameScene() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Auto-start for multiplayer — skip the main-menu screen
+  useEffect(() => {
+    if (!multiProps || !mounted) return;
+    const t = setTimeout(() => {
+      storeRef.current.setRunning(true);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [mounted, multiProps]);
 
   useEffect(() => {
     if (!mounted || !mountRef.current) return;
@@ -1105,6 +864,91 @@ export default function GameScene() {
     }
     (window as unknown as Record<string, unknown>).__activateUlt = activateUlt;
 
+    // ── Multiplayer: remote player mesh + position sync ───────────────────────
+    let remoteTargetX = 3, remoteTargetZ = 3, remoteTargetAngle = 0;
+    let syncIntervalId: ReturnType<typeof setInterval> | null = null;
+    let remoteRig: ReturnType<typeof buildPlayerRig> | null = null;
+    let pendingRemoteHits = 0; // hits queued to send to remote on next sync
+
+    // PVP countdown — blocks movement/shooting for 3 s at game start
+    const pvp = { countdownActive: false };
+    const pvpTimeouts: ReturnType<typeof setTimeout>[] = [];
+    if (multiProps?.mode === "pvp") {
+      pvp.countdownActive = true;
+      (window as unknown as Record<string, unknown>).__pvpCountdown = 3;
+      pvpTimeouts.push(setTimeout(() => { (window as unknown as Record<string, unknown>).__pvpCountdown = 2; }, 1000));
+      pvpTimeouts.push(setTimeout(() => { (window as unknown as Record<string, unknown>).__pvpCountdown = 1; }, 2000));
+      pvpTimeouts.push(setTimeout(() => {
+        delete (window as unknown as Record<string, unknown>).__pvpCountdown;
+        pvp.countdownActive = false;
+      }, 3000));
+    }
+
+    if (multiProps) {
+      remoteRig = buildPlayerRig();
+      // Green shirt to distinguish from local player
+      remoteRig.materials.shirt.color.set(0x1a7a2e);
+      remoteRig.materials.shirt.emissive.set(0x0a2a10);
+      remoteRig.root.position.set(3, 0, 3);
+      scene.add(remoteRig.root);
+
+      syncIntervalId = setInterval(async () => {
+        const s = storeRef.current;
+        // Pause sync while game over (keeps interval alive for rematch)
+        if (s.gameOver) return;
+        // Skip while paused / on main menu
+        if (!s.running) return;
+        try {
+          const hitsToSend = pendingRemoteHits;
+          pendingRemoteHits = 0;
+          const res = await fetch(`/api/rooms/${multiProps!.roomId}/sync`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              x: playerMesh.position.x,
+              z: playerMesh.position.z,
+              angle: playerMesh.rotation.y,
+              hp: s.hp,
+              score: s.score,
+              kills: s.kills,
+              hitRemote: hitsToSend,
+            }),
+          });
+          if (res.ok) {
+            const data = (await res.json()) as {
+              host?: { x: number; z: number; angle: number; hp: number; updatedAt: number } | null;
+              guest?: { x: number; z: number; angle: number; hp: number; updatedAt: number } | null;
+              incomingHits?: number;
+            };
+            const other = multiProps!.role === "host" ? data.guest : data.host;
+            if (other) {
+              remoteTargetX = other.x;
+              remoteTargetZ = other.z;
+              remoteTargetAngle = other.angle;
+              // Remote player died → we won; stop queuing hits on them
+              if (other.hp === 0 && !(window as any).__pvpResult) {
+                (window as any).__pvpResult = "win";
+                pendingRemoteHits = 0;
+                // Record PVP win on the server
+                fetch("/api/pvp/win", { method: "POST" }).catch(() => undefined);
+              }
+              // Remote went stale >5s → abandoned
+              if (Date.now() - other.updatedAt > 5000 && !(window as any).__pvpResult) {
+                (window as any).__pvpResult = "abandoned";
+              }
+            }
+            // Apply damage dealt by the remote player
+            if (data.incomingHits && data.incomingHits > 0) {
+              storeRef.current.damage(data.incomingHits);
+            }
+          } else {
+            // Failed to send — put hits back
+            pendingRemoteHits += hitsToSend;
+          }
+        } catch { /* ignore */ }
+      }, 200);
+    }
+
     function killEnemy(idx: number) {
       const e = enemies[idx];
       spawnParticles(e.mesh.position.clone(), e.col, 8);
@@ -1184,24 +1028,35 @@ export default function GameScene() {
       s.tickDash();
       s.tickWave();
 
-      // Wave manager
-      if (s.waveTimer === 0) {
-        const shouldSpawn = s.tickSpawn();
-        if (shouldSpawn) spawnEnemy(s.wave);
-        if (s.spawnQueue === 0 && enemies.length === 0 && s.enemiesLeft <= 0) {
-          s.nextWave();
-        }
-      } else if (s.waveTimer === 1) {
-        s.startWave();
+      // Remote player smooth interpolation
+      if (remoteRig) {
+        remoteRig.root.position.x += (remoteTargetX - remoteRig.root.position.x) * 0.2;
+        remoteRig.root.position.z += (remoteTargetZ - remoteRig.root.position.z) * 0.2;
+        remoteRig.root.rotation.y += (remoteTargetAngle - remoteRig.root.rotation.y) * 0.2;
       }
 
-      // Player movement
+      // Wave manager — skip enemy spawning in PVP mode
+      if (!multiProps || multiProps.mode !== "pvp") {
+        if (s.waveTimer === 0) {
+          const shouldSpawn = s.tickSpawn();
+          if (shouldSpawn) spawnEnemy(s.wave);
+          if (s.spawnQueue === 0 && enemies.length === 0 && s.enemiesLeft <= 0) {
+            s.nextWave();
+          }
+        } else if (s.waveTimer === 1) {
+          s.startWave();
+        }
+      }
+
+      // Player movement — frozen during PVP countdown
       let mx = 0,
         mz = 0;
+      if (!pvp.countdownActive) {
       if (keys["KeyW"] || keys["ArrowUp"]) mz = -1;
       if (keys["KeyS"] || keys["ArrowDown"]) mz = 1;
       if (keys["KeyA"] || keys["ArrowLeft"]) mx = -1;
       if (keys["KeyD"] || keys["ArrowRight"]) mx = 1;
+      }
 
       moving = mx !== 0 || mz !== 0;
 
@@ -1296,14 +1151,20 @@ export default function GameScene() {
       // Expose ult state to HUD
       (window as unknown as Record<string, unknown>).__ult = { charge: ultKills, needed: ULT_NEEDED, active: ultActive };
 
-      // Auto fire
+      // Auto fire — frozen during PVP countdown
       s.tickFire();
-      if (s.fireTimer >= s.fireRate) {
+      if (!pvp.countdownActive && s.fireTimer >= s.fireRate) {
         s.resetFire();
-        const tgt = getNearestEnemy();
-        if (tgt) {
-          const tx = tgt.mesh.position.x,
-            tz = tgt.mesh.position.z;
+        // In PVP target the remote player; in co-op/solo target nearest enemy
+        let tx: number | null = null, tz: number | null = null;
+        if (multiProps?.mode === "pvp" && remoteRig) {
+          tx = remoteRig.root.position.x;
+          tz = remoteRig.root.position.z;
+        } else {
+          const tgt = getNearestEnemy();
+          if (tgt) { tx = tgt.mesh.position.x; tz = tgt.mesh.position.z; }
+        }
+        if (tx !== null && tz !== null) {
           if (s.shotCount === 1) {
             spawnBullet(playerMesh.position.x, playerMesh.position.z, tx, tz);
           } else {
@@ -1334,19 +1195,32 @@ export default function GameScene() {
         b.mesh.position.z += b.vz;
         b.life--;
         let hit = false;
-        for (let ei = enemies.length - 1; ei >= 0; ei--) {
-          const en = enemies[ei];
-          const dx = b.mesh.position.x - en.mesh.position.x;
-          const dz = b.mesh.position.z - en.mesh.position.z;
+        // In PVP, check collision against the remote player mesh
+        if (multiProps?.mode === "pvp" && remoteRig) {
+          const dx = b.mesh.position.x - remoteRig.root.position.x;
+          const dz = b.mesh.position.z - remoteRig.root.position.z;
           if (Math.sqrt(dx * dx + dz * dz) < 0.75) {
-            en.hp--;
-            en.hitTimer = 7;
-            const ratio = Math.max(0, en.hp / en.maxHp);
-            en.hpFg.scale.x = ratio;
-            en.hpFg.position.x = -(0.9 * (1 - ratio)) / 2;
-            if (en.hp <= 0) killEnemy(ei);
+            pendingRemoteHits++;
+            spawnParticles(b.mesh.position.clone(), 0xff4444, 4);
             hit = true;
-            break;
+          }
+        }
+        // In non-PVP, check collision against enemies
+        if (!hit) {
+          for (let ei = enemies.length - 1; ei >= 0; ei--) {
+            const en = enemies[ei];
+            const dx = b.mesh.position.x - en.mesh.position.x;
+            const dz = b.mesh.position.z - en.mesh.position.z;
+            if (Math.sqrt(dx * dx + dz * dz) < 0.75) {
+              en.hp--;
+              en.hitTimer = 7;
+              const ratio = Math.max(0, en.hp / en.maxHp);
+              en.hpFg.scale.x = ratio;
+              en.hpFg.position.x = -(0.9 * (1 - ratio)) / 2;
+              if (en.hp <= 0) killEnemy(ei);
+              hit = true;
+              break;
+            }
           }
         }
         if (hit || b.life <= 0) {
@@ -1486,6 +1360,9 @@ export default function GameScene() {
 
     return () => {
       cancelAnimationFrame(raf);
+      if (syncIntervalId) clearInterval(syncIntervalId);
+      pvpTimeouts.forEach(t => clearTimeout(t));
+      if (remoteRig) scene.remove(remoteRig.root);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("keyup", onKey);
       window.removeEventListener("resize", onResize);
@@ -1493,6 +1370,8 @@ export default function GameScene() {
       const w = window as unknown as Record<string, unknown>;
       delete w.__keys;
       delete w.__activateUlt;
+      delete w.__pvpCountdown;
+      delete w.__pvpResult;
       renderer.dispose();
       el.removeChild(renderer.domElement);
     };
@@ -1501,7 +1380,7 @@ export default function GameScene() {
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
-      <HUD />
+      <HUD multiProps={multiProps} />
     </div>
   );
 }

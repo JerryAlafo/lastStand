@@ -16,8 +16,9 @@ const GITHUB_BRANCH = process.env.GITHUB_BRANCH ?? "main";
 const USE_GITHUB = Boolean(GITHUB_TOKEN && GITHUB_REPO);
 
 const DATA_FILES = {
-  users:  "data/users.txt",
-  scores: "data/scores.txt",
+  users:   "data/users.txt",
+  scores:  "data/scores.txt",
+  pvpWins: "data/pvp_wins.txt",
 } as const;
 
 // ── Write-lock queue (serialises concurrent writes per file) ─────────────────
@@ -129,12 +130,75 @@ async function appendLine(filePath: string, line: string): Promise<void> {
   });
 }
 
+// ── Core full-file write (replaces entire content) ───────────────────────────
+
+async function writeFile(filePath: string, content: string): Promise<void> {
+  await withWriteLock(filePath, async () => {
+    if (USE_GITHUB) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const file = await ghGet(filePath);
+        try {
+          await ghPut(filePath, content, file?.sha ?? null);
+          return;
+        } catch (err) {
+          if (attempt === 0 && err instanceof Error && err.message.includes("409")) continue;
+          throw err;
+        }
+      }
+    } else {
+      const lp = path.join(process.cwd(), filePath);
+      await ensureLocalFile(lp);
+      await fs.writeFile(lp, content, "utf8");
+    }
+  });
+}
+
+// ── Rooms ─────────────────────────────────────────────────────────────────────
+
+const ROOMS_FILE = "data/rooms.txt";
+
+export interface Room {
+  id: string;                      // 6-char hex token — also the invite token
+  mode: "pvp" | "coop" | null;
+  host: string;
+  guest: string | null;
+  status: "waiting" | "playing" | "finished";
+  createdAt: number;
+}
+
+export async function readRooms(): Promise<Room[]> {
+  const lines = await readLines(ROOMS_FILE);
+  return lines.map(l => { try { return JSON.parse(l) as Room; } catch { return null; } })
+    .filter((r): r is Room => !!r);
+}
+
+export async function saveRooms(rooms: Room[]): Promise<void> {
+  const content = rooms.map(r => JSON.stringify(r)).join("\n") + (rooms.length ? "\n" : "");
+  await writeFile(ROOMS_FILE, content);
+}
+
+export async function getRoom(id: string): Promise<Room | null> {
+  const rooms = await readRooms();
+  return rooms.find(r => r.id === id) ?? null;
+}
+
+export async function upsertRoom(room: Room): Promise<void> {
+  await withWriteLock(ROOMS_FILE + ":upsert", async () => {
+    const rooms = await readRooms();
+    const idx = rooms.findIndex(r => r.id === room.id);
+    if (idx >= 0) rooms[idx] = room; else rooms.push(room);
+    await saveRooms(rooms);
+  });
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export async function readUsersLines():           Promise<string[]> { return readLines(DATA_FILES.users);       }
 export async function appendUserLine(l: string):  Promise<void>     { return appendLine(DATA_FILES.users, l);  }
 export async function readScoresLines():          Promise<string[]> { return readLines(DATA_FILES.scores);      }
 export async function appendScoreLine(l: string): Promise<void>     { return appendLine(DATA_FILES.scores, l); }
+export async function readPvpWinsLines():         Promise<string[]> { return readLines(DATA_FILES.pvpWins);     }
+export async function appendPvpWinLine(l: string):Promise<void>     { return appendLine(DATA_FILES.pvpWins, l);}
 
 export function getUsersPath()  { return path.join(dataDir, "users.txt");  }
 export function getScoresPath() { return path.join(dataDir, "scores.txt"); }

@@ -13,25 +13,16 @@ import {
   Pause,
   Play,
   LogOut,
-  Swords,
-  Trophy,
-  RotateCcw,
   Settings,
-  X,
-  UserCog,
-  BarChart2,
-  Heart,
   Home,
   Skull,
-  Mail,
-  MessageCircle,
-  Camera,
-  Briefcase,
-  ExternalLink,
-  ArrowLeft,
-  Phone,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
+import { MultiProps } from "@/lib/gameTypes";
+import VirtualControls from "./VirtualControls";
+import SettingsModal from "./SettingsModal";
+import GameOverScreen from "./GameOverScreen";
+import MainMenuOverlay from "./MainMenuOverlay";
 
 // Lerp between two RGBA arrays based on t (0=night, 1=day)
 function lerpRgba(night: number[], day: number[], t: number): string {
@@ -42,373 +33,7 @@ function lerpRgba(night: number[], day: number[], t: number): string {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-function Swatch({
-  color,
-  active,
-  onClick,
-}: {
-  color: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        width: 28,
-        height: 28,
-        borderRadius: "50%",
-        background: color,
-        border: active
-          ? "2.5px solid #fff"
-          : "2px solid rgba(255,255,255,0.15)",
-        cursor: "pointer",
-        padding: 0,
-        flexShrink: 0,
-        boxShadow: active ? `0 0 10px ${color}` : "none",
-        transform: active ? "scale(1.18)" : "scale(1)",
-        transition: "all 0.15s",
-      }}
-    />
-  );
-}
-
-function SettingRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div style={{ marginBottom: 14 }}>
-      <div
-        style={{
-          fontSize: 10,
-          letterSpacing: 2,
-          color: "rgba(170,102,255,0.65)",
-          textTransform: "uppercase",
-          marginBottom: 7,
-          fontFamily: "monospace",
-        }}
-      >
-        {label}
-      </div>
-      <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function CharacterPreview({
-  skin,
-  shirt,
-  shorts,
-  shoe,
-}: {
-  skin: string;
-  shirt: string;
-  shorts: string;
-  shoe: string;
-}) {
-  return (
-    <svg
-      width="100"
-      height="200"
-      viewBox="0 0 100 200"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.5))" }}
-    >
-      {/* Shadow */}
-      <ellipse cx="50" cy="193" rx="26" ry="6" fill="rgba(0,0,0,0.22)" />
-      {/* Legs */}
-      <rect x="27" y="122" width="18" height="52" rx="7" fill={skin} />
-      <rect x="55" y="122" width="18" height="52" rx="7" fill={skin} />
-      {/* Shoes */}
-      <ellipse cx="36" cy="176" rx="16" ry="8" fill={shoe} />
-      <ellipse cx="64" cy="176" rx="16" ry="8" fill={shoe} />
-      {/* Shorts */}
-      <rect x="23" y="96" width="54" height="32" rx="7" fill={shorts} />
-      {/* Torso */}
-      <rect x="25" y="52" width="50" height="50" rx="9" fill={shirt} />
-      {/* Arms */}
-      <rect x="6" y="54" width="19" height="42" rx="8" fill={shirt} />
-      <rect x="75" y="54" width="19" height="42" rx="8" fill={shirt} />
-      {/* Hands */}
-      <ellipse cx="15" cy="99" rx="9" ry="8" fill={skin} />
-      <ellipse cx="85" cy="99" rx="9" ry="8" fill={skin} />
-      {/* Neck */}
-      <rect x="42" y="40" width="16" height="16" rx="5" fill={skin} />
-      {/* Head */}
-      <circle cx="50" cy="26" r="26" fill={skin} />
-      {/* Eyes */}
-      <circle cx="40" cy="23" r="5" fill="white" />
-      <circle cx="60" cy="23" r="5" fill="white" />
-      <circle cx="41" cy="24" r="2.8" fill="#1a1a2e" />
-      <circle cx="61" cy="24" r="2.8" fill="#1a1a2e" />
-      {/* Smile */}
-      <path
-        d="M40 38 Q50 45 60 38"
-        stroke="rgba(0,0,0,0.35)"
-        strokeWidth="2"
-        strokeLinecap="round"
-        fill="none"
-      />
-    </svg>
-  );
-}
-
-// ── Virtual joystick helper ──────────────────────────────────────────────────
-function VirtualControls({
-  ultReady,
-  ultActive,
-  ultCharge,
-  onUlt,
-  onDash,
-  onPause,
-  running,
-}: {
-  ultReady: boolean;
-  ultActive: boolean;
-  ultCharge: number;
-  onUlt: () => void;
-  onDash: () => void;
-  onPause: () => void;
-  running: boolean;
-}) {
-  const joyRef = useRef<{ ox: number; oy: number; id: number } | null>(null);
-  const [joyPos, setJoyPos] = useState({ x: 0, y: 0 });
-  const BASE_R = 60;
-  const HANDLE_R = 26;
-  const DEAD = 8;
-
-  function setKeys(dx: number, dy: number) {
-    const w = window as unknown as Record<string, unknown>;
-    const k = w.__keys as Record<string, boolean> | undefined;
-    if (!k) return;
-    k["KeyW"] = dy < -DEAD;
-    k["KeyS"] = dy > DEAD;
-    k["KeyA"] = dx < -DEAD;
-    k["KeyD"] = dx > DEAD;
-  }
-
-  function clearKeys() {
-    const w = window as unknown as Record<string, unknown>;
-    const k = w.__keys as Record<string, boolean> | undefined;
-    if (!k) return;
-    ["KeyW", "KeyS", "KeyA", "KeyD"].forEach((key) => {
-      k[key] = false;
-    });
-  }
-
-  function onStart(e: React.TouchEvent) {
-    e.preventDefault();
-    const t = e.changedTouches[0];
-    joyRef.current = { ox: t.clientX, oy: t.clientY, id: t.identifier };
-  }
-
-  function onMove(e: React.TouchEvent) {
-    e.preventDefault();
-    if (!joyRef.current) return;
-    const t = Array.from(e.changedTouches).find(
-      (c) => c.identifier === joyRef.current!.id,
-    );
-    if (!t) return;
-    const dx = t.clientX - joyRef.current.ox;
-    const dy = t.clientY - joyRef.current.oy;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const clamp = Math.min(dist, BASE_R);
-    const nx = dist > 0 ? (dx / dist) * clamp : 0;
-    const ny = dist > 0 ? (dy / dist) * clamp : 0;
-    setJoyPos({ x: nx, y: ny });
-    setKeys(dx, dy);
-  }
-
-  function onEnd(e: React.TouchEvent) {
-    e.preventDefault();
-    joyRef.current = null;
-    setJoyPos({ x: 0, y: 0 });
-    clearKeys();
-  }
-
-  const ultPct = Math.min(ultCharge / 15, 1);
-
-  return (
-    <>
-      {/* Joystick — bottom left */}
-      <div
-        onTouchStart={onStart}
-        onTouchMove={onMove}
-        onTouchEnd={onEnd}
-        onTouchCancel={onEnd}
-        style={{
-          position: "absolute",
-          bottom: 110,
-          left: 30,
-          width: BASE_R * 2,
-          height: BASE_R * 2,
-          borderRadius: "50%",
-          background: "rgba(255,255,255,0.06)",
-          border: "2px solid rgba(255,255,255,0.18)",
-          backdropFilter: "blur(6px)",
-          touchAction: "none",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxShadow: "0 0 20px rgba(123,47,247,0.2)",
-          zIndex: 20,
-          userSelect: "none",
-        }}
-      >
-        {/* Handle */}
-        <div
-          style={{
-            position: "absolute",
-            width: HANDLE_R * 2,
-            height: HANDLE_R * 2,
-            borderRadius: "50%",
-            background:
-              "radial-gradient(circle at 35% 35%, rgba(170,102,255,0.7), rgba(123,47,247,0.4))",
-            border: "1.5px solid rgba(255,255,255,0.35)",
-            boxShadow: "0 0 12px rgba(123,47,247,0.5)",
-            transform: `translate(${joyPos.x}px, ${joyPos.y}px)`,
-            transition: joyRef.current ? "none" : "transform 0.15s ease",
-            pointerEvents: "none",
-          }}
-        />
-      </div>
-
-      {/* Action buttons — bottom right (only while game is running) */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 100,
-          right: 24,
-          display: running ? "flex" : "none",
-          flexDirection: "column",
-          gap: 14,
-          alignItems: "center",
-          zIndex: 20,
-        }}
-      >
-        {/* ULT button */}
-        <div style={{ position: "relative", width: 72, height: 72 }}>
-          {/* Charge ring */}
-          <svg
-            width="72"
-            height="72"
-            style={{
-              position: "absolute",
-              inset: 0,
-              transform: "rotate(-90deg)",
-            }}
-          >
-            <circle
-              cx="36"
-              cy="36"
-              r="32"
-              fill="none"
-              stroke="rgba(255,220,0,0.15)"
-              strokeWidth="4"
-            />
-            <circle
-              cx="36"
-              cy="36"
-              r="32"
-              fill="none"
-              stroke={ultReady ? "#ffd700" : "rgba(255,220,0,0.5)"}
-              strokeWidth="4"
-              strokeDasharray={`${2 * Math.PI * 32}`}
-              strokeDashoffset={`${2 * Math.PI * 32 * (1 - ultPct)}`}
-              strokeLinecap="round"
-              style={{ transition: "stroke-dashoffset 0.3s" }}
-            />
-          </svg>
-          <button
-            onTouchStart={(e) => {
-              e.preventDefault();
-              if (ultReady) onUlt();
-            }}
-            style={{
-              position: "absolute",
-              inset: 6,
-              borderRadius: "50%",
-              background: ultActive
-                ? "radial-gradient(circle, #fff8c0, #ffd700)"
-                : ultReady
-                  ? "radial-gradient(circle, #ffe566, #e6a800)"
-                  : "rgba(255,215,0,0.12)",
-              border: ultReady
-                ? "2px solid #ffd700"
-                : "2px solid rgba(255,215,0,0.3)",
-              color: ultReady ? "#000" : "rgba(255,215,0,0.5)",
-              fontSize: 22,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: ultReady ? "0 0 20px rgba(255,215,0,0.6)" : "none",
-              transition: "all 0.2s",
-              touchAction: "none",
-            }}
-          >
-            <Zap size={22} />
-          </button>
-        </div>
-
-        {/* DASH button */}
-        <button
-          onTouchStart={(e) => {
-            e.preventDefault();
-            onDash();
-          }}
-          style={{
-            width: 58,
-            height: 58,
-            borderRadius: "50%",
-            background:
-              "radial-gradient(circle at 35% 35%, rgba(0,195,255,0.6), rgba(0,100,200,0.35))",
-            border: "2px solid rgba(0,195,255,0.45)",
-            color: "#fff",
-            fontSize: 13,
-            fontWeight: 800,
-            fontFamily: "monospace",
-            letterSpacing: 1,
-            cursor: "pointer",
-            boxShadow: "0 0 14px rgba(0,195,255,0.35)",
-            touchAction: "none",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          DASH
-        </button>
-      </div>
-
-      {/* Top-right: pause button while running */}
-      {running && (
-        <button
-          onTouchStart={(e) => { e.preventDefault(); onPause(); }}
-          style={{
-            position: "absolute", top: 14, right: 14, zIndex: 20,
-            width: 42, height: 42, borderRadius: "50%",
-            background: "rgba(255,255,255,0.08)",
-            border: "1px solid rgba(255,255,255,0.18)",
-            backdropFilter: "blur(8px)",
-            color: "#fff", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            touchAction: "none",
-          }}
-        ><Pause size={18} /></button>
-      )}
-    </>
-  );
-}
-
-export default function HUD() {
+export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
   const router = useRouter();
   const { data: session } = useSession();
   const username = session?.user?.username ?? "";
@@ -459,6 +84,10 @@ export default function HUD() {
   const [ultCharge, setUltCharge] = useState(0);
   const [ultReady, setUltReady] = useState(false);
   const [ultActive, setUltActive] = useState(false);
+  // PVP pre-game countdown (3, 2, 1) exposed from GameScene via window.__pvpCountdown
+  const [pvpCountdown, setPvpCountdown] = useState<number | null>(null);
+  // PVP end-of-match result: "win" | "abandoned" | null
+  const [pvpResult, setPvpResult] = useState<"win" | "abandoned" | null>(null);
   const dayRafRef = useRef<number>();
   const dayFrameRef = useRef(0);
   useEffect(() => {
@@ -476,6 +105,10 @@ export default function HUD() {
           setUltReady(ult.charge >= ult.needed);
           setUltActive(ult.active);
         }
+        const cd = w.__pvpCountdown as number | undefined;
+        setPvpCountdown(cd !== undefined ? cd : null);
+        const res = w.__pvpResult as "win" | "abandoned" | undefined;
+        if (res) setPvpResult(res);
       }
       dayRafRef.current = requestAnimationFrame(tick);
     }
@@ -498,13 +131,6 @@ export default function HUD() {
   }, [hp]);
 
   const [showSettings, setShowSettings] = useState(false);
-  const [showContact, setShowContact] = useState(false);
-  const [newUsername, setNewUsername] = useState("");
-  const [renameLoading, setRenameLoading] = useState(false);
-  const [renameMsg, setRenameMsg] = useState<{
-    ok: boolean;
-    text: string;
-  } | null>(null);
   const [cfg, setCfg] = useState(() => {
     if (typeof window === "undefined")
       return {
@@ -608,7 +234,101 @@ export default function HUD() {
           0%   { opacity: 1; }
           100% { opacity: 0; }
         }
+        @keyframes cdPulse {
+          0%   { transform: scale(1.6); opacity: 0; }
+          25%  { opacity: 1; }
+          80%  { transform: scale(1); opacity: 1; }
+          100% { transform: scale(0.85); opacity: 0.6; }
+        }
       `}</style>
+
+      {/* ── PVP Countdown overlay ── */}
+      {pvpCountdown !== null && (
+        <div style={{
+          position: "absolute", inset: 0, zIndex: 50, pointerEvents: "none",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          background: "radial-gradient(ellipse at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 100%)",
+        }}>
+          <div
+            key={pvpCountdown}
+            style={{
+              fontSize: "clamp(90px, 22vw, 160px)", fontWeight: 900, color: "#fff",
+              fontFamily: "monospace", lineHeight: 1,
+              textShadow: "0 0 40px rgba(123,47,247,0.9), 0 0 100px rgba(123,47,247,0.5)",
+              animation: "cdPulse 0.95s ease-out forwards",
+            }}
+          >
+            {pvpCountdown}
+          </div>
+          <div style={{
+            fontSize: "clamp(12px, 3vw, 18px)", letterSpacing: 4, color: "rgba(200,150,255,0.7)",
+            textTransform: "uppercase", fontFamily: "monospace", marginTop: 16,
+          }}>
+            PVP — Preparar…
+          </div>
+        </div>
+      )}
+
+      {/* ── PVP Result modal (win / opponent abandoned) ── */}
+      {pvpResult && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 200,
+          background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <div style={{
+            background: "linear-gradient(135deg, #1a0a30, #0e0520)",
+            border: `1px solid ${pvpResult === "win" ? "rgba(46,204,113,0.4)" : "rgba(255,170,0,0.35)"}`,
+            borderRadius: 20, padding: "40px 36px", textAlign: "center",
+            maxWidth: 360, width: "90%",
+            boxShadow: pvpResult === "win"
+              ? "0 0 60px rgba(46,204,113,0.25)"
+              : "0 0 60px rgba(255,170,0,0.2)",
+          }}>
+            <div style={{
+              fontSize: "clamp(48px, 12vw, 72px)", lineHeight: 1, marginBottom: 12,
+            }}>
+              {pvpResult === "win" ? "🏆" : "🚪"}
+            </div>
+            <div style={{
+              fontSize: "clamp(22px, 6vw, 32px)", fontWeight: 900, color: "#fff",
+              marginBottom: 8,
+            }}>
+              {pvpResult === "win" ? "Vitória!" : "Adversário saiu"}
+            </div>
+            <div style={{
+              fontSize: 14, color: "rgba(255,255,255,0.5)", marginBottom: 32, lineHeight: 1.5,
+            }}>
+              {pvpResult === "win"
+                ? "Eliminaste o adversário. Parabéns!"
+                : "O adversário abandonou a partida."}
+            </div>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+              <button
+                onClick={() => { setPvpResult(null); router.push("/multiplayer"); }}
+                style={{
+                  padding: "12px 24px", borderRadius: 10, border: "none", cursor: "pointer",
+                  background: "linear-gradient(135deg,#7b2ff7,#aa55ff)",
+                  color: "#fff", fontSize: 14, fontWeight: 700, fontFamily: "inherit",
+                }}
+              >
+                Novo Jogo
+              </button>
+              <button
+                onClick={() => { setPvpResult(null); reset(); }}
+                style={{
+                  padding: "12px 24px", borderRadius: 10, cursor: "pointer",
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  color: "rgba(255,255,255,0.7)", fontSize: 14, fontWeight: 600, fontFamily: "inherit",
+                }}
+              >
+                Menu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Top bar ── */}
       <div
@@ -781,7 +501,28 @@ export default function HUD() {
           Config
         </Button>
 
-        {session?.user?.username && (
+        {multiProps?.mode === "pvp" && (
+          <Button
+            onClick={() => router.push("/multiplayer")}
+            variant="contained"
+            startIcon={<LogOut size={14} />}
+            sx={{
+              bgcolor: "rgba(231,76,60,0.88)",
+              backdropFilter: "blur(6px)",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 700,
+              fontFamily: "monospace",
+              textTransform: "none",
+              borderRadius: 2,
+              "&:hover": { bgcolor: "#c0392b" },
+            }}
+          >
+            Abandonar
+          </Button>
+        )}
+
+        {!multiProps && session?.user?.username && (
           <Button
             onClick={async () => {
               await fetch("/api/auth/logout", { method: "POST" });
@@ -1069,637 +810,14 @@ export default function HUD() {
       </div>
 
       {/* ── Settings modal ── */}
-      {showSettings && (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 50,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(0,0,10,0.85)",
-            backdropFilter: "blur(8px)",
-          }}
-        >
-          <div
-            style={{
-              width: 620,
-              maxWidth: "96vw",
-              maxHeight: "92vh",
-              overflowY: "auto",
-              background: "rgba(12,4,28,0.98)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 20,
-              padding: "26px 28px 22px",
-              boxShadow: "0 0 80px rgba(123,47,247,0.3)",
-              fontFamily: "'Inter','Segoe UI',sans-serif",
-            }}
-          >
-            {/* Header */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 22,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <Settings size={19} color="#aa66ff" />
-                <span
-                  style={{
-                    fontSize: 17,
-                    fontWeight: 800,
-                    color: "#fff",
-                    letterSpacing: 0.3,
-                  }}
-                >
-                  Configurações
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  setShowSettings(false);
-                  setRunning(true);
-                }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "rgba(255,255,255,0.45)",
-                  padding: 4,
-                  display: "flex",
-                }}
-              >
-                <X size={20} />
-              </button>
-            </div>
+      <SettingsModal
+        open={showSettings}
+        onClose={() => { setShowSettings(false); setRunning(true); }}
+        cfg={cfg}
+        onSave={saveSettings}
+        username={username}
+      />
 
-            {/* Two-column: pickers + preview */}
-            <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-              {/* Left: colour pickers */}
-              <div style={{ flex: 1 }}>
-                <div
-                  style={{
-                    fontSize: 10,
-                    letterSpacing: 3,
-                    color: "rgba(170,102,255,0.6)",
-                    textTransform: "uppercase",
-                    marginBottom: 14,
-                    fontFamily: "monospace",
-                  }}
-                >
-                  Personalizar Personagem
-                </div>
-                <SettingRow label="Tom de pele">
-                  {[
-                    "#f1c27d",
-                    "#e0ac69",
-                    "#c68642",
-                    "#d49560",
-                    "#8d5524",
-                    "#4a2911",
-                  ].map((c) => (
-                    <Swatch
-                      key={c}
-                      color={c}
-                      active={cfg.skin === c}
-                      onClick={() => saveSettings({ ...cfg, skin: c })}
-                    />
-                  ))}
-                </SettingRow>
-                <SettingRow label="Camisola">
-                  {[
-                    "#4a90d9",
-                    "#e74c3c",
-                    "#2ecc71",
-                    "#f39c12",
-                    "#9b59b6",
-                    "#1abc9c",
-                    "#111111",
-                    "#e8e8e8",
-                  ].map((c) => (
-                    <Swatch
-                      key={c}
-                      color={c}
-                      active={cfg.shirt === c}
-                      onClick={() => saveSettings({ ...cfg, shirt: c })}
-                    />
-                  ))}
-                </SettingRow>
-                <SettingRow label="Calções">
-                  {[
-                    "#1a2255",
-                    "#2c3e50",
-                    "#7f0000",
-                    "#1a4a1a",
-                    "#4a3800",
-                    "#220033",
-                    "#111111",
-                    "#334455",
-                  ].map((c) => (
-                    <Swatch
-                      key={c}
-                      color={c}
-                      active={cfg.shorts === c}
-                      onClick={() => saveSettings({ ...cfg, shorts: c })}
-                    />
-                  ))}
-                </SettingRow>
-                <SettingRow label="Sapatilhas">
-                  {[
-                    "#111111",
-                    "#e8e8e8",
-                    "#8b4513",
-                    "#e74c3c",
-                    "#1a1a6a",
-                    "#2ecc71",
-                  ].map((c) => (
-                    <Swatch
-                      key={c}
-                      color={c}
-                      active={cfg.shoe === c}
-                      onClick={() => saveSettings({ ...cfg, shoe: c })}
-                    />
-                  ))}
-                </SettingRow>
-              </div>
-
-              {/* Right: character preview */}
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 8,
-                  paddingTop: 24,
-                }}
-              >
-                <div
-                  style={{
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.07)",
-                    borderRadius: 16,
-                    padding: "18px 22px",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  <CharacterPreview
-                    skin={cfg.skin}
-                    shirt={cfg.shirt}
-                    shorts={cfg.shorts}
-                    shoe={cfg.shoe}
-                  />
-                  <span
-                    style={{
-                      fontSize: 10,
-                      color: "rgba(255,255,255,0.3)",
-                      letterSpacing: 1,
-                      textTransform: "uppercase",
-                      fontFamily: "monospace",
-                    }}
-                  >
-                    Pré-visualização
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div
-              style={{
-                height: 1,
-                background: "rgba(255,255,255,0.07)",
-                margin: "18px 0",
-              }}
-            />
-
-            {/* Username change */}
-            <div style={{ marginBottom: 16 }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: 12,
-                }}
-              >
-                <UserCog size={16} color="#aa66ff" />
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>
-                  Alterar Username
-                </span>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  value={newUsername}
-                  onChange={(e) => {
-                    setNewUsername(e.target.value);
-                    setRenameMsg(null);
-                  }}
-                  placeholder={username || "novo_username"}
-                  maxLength={20}
-                  style={{
-                    flex: 1,
-                    padding: "10px 12px",
-                    borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    background: "rgba(255,255,255,0.05)",
-                    color: "#fff",
-                    fontSize: 14,
-                    outline: "none",
-                    fontFamily: "inherit",
-                  }}
-                />
-                <button
-                  disabled={renameLoading || !newUsername.trim()}
-                  onClick={async () => {
-                    setRenameLoading(true);
-                    setRenameMsg(null);
-                    try {
-                      const res = await fetch("/api/user/rename", {
-                        method: "POST",
-                        headers: { "content-type": "application/json" },
-                        body: JSON.stringify({ newUsername }),
-                      });
-                      const json = (await res.json()) as {
-                        ok?: boolean;
-                        error?: string;
-                      };
-                      if (json.ok) {
-                        setRenameMsg({
-                          ok: true,
-                          text: "Alterado! A fazer logout para atualizar sessão…",
-                        });
-                        setTimeout(
-                          () => signOut({ callbackUrl: "/login" }),
-                          1800,
-                        );
-                      } else {
-                        setRenameMsg({
-                          ok: false,
-                          text: json.error ?? "Erro ao alterar.",
-                        });
-                      }
-                    } finally {
-                      setRenameLoading(false);
-                    }
-                  }}
-                  style={{
-                    padding: "10px 18px",
-                    borderRadius: 8,
-                    border: "none",
-                    background:
-                      renameLoading || !newUsername.trim()
-                        ? "rgba(123,47,247,0.25)"
-                        : "linear-gradient(135deg,#7b2ff7,#00c3ff)",
-                    color: "#fff",
-                    fontWeight: 700,
-                    cursor:
-                      renameLoading || !newUsername.trim()
-                        ? "not-allowed"
-                        : "pointer",
-                    fontSize: 13,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {renameLoading ? "…" : "Guardar"}
-                </button>
-              </div>
-              {renameMsg && (
-                <div
-                  style={{
-                    marginTop: 8,
-                    fontSize: 12,
-                    color: renameMsg.ok ? "#2ecc71" : "#ff7070",
-                    fontFamily: "monospace",
-                  }}
-                >
-                  {renameMsg.text}
-                </div>
-              )}
-            </div>
-
-            {/* Divider */}
-            <div
-              style={{
-                height: 1,
-                background: "rgba(255,255,255,0.07)",
-                marginBottom: 16,
-              }}
-            />
-
-            {/* Contact + close row */}
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={() => {
-                  setShowSettings(false);
-                  setShowContact(true);
-                }}
-                style={{
-                  flex: 1,
-                  padding: "11px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  background: "rgba(255,255,255,0.04)",
-                  color: "rgba(255,255,255,0.7)",
-                  fontWeight: 600,
-                  fontSize: 13,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  fontFamily: "inherit",
-                }}
-              >
-                <Phone size={15} /> Contacto
-              </button>
-              <button
-                onClick={() => {
-                  setShowSettings(false);
-                  setRunning(true);
-                }}
-                style={{
-                  flex: 2,
-                  padding: "11px",
-                  background: "linear-gradient(135deg,#7b2ff7,#00c3ff)",
-                  border: "none",
-                  borderRadius: 10,
-                  color: "#fff",
-                  fontWeight: 700,
-                  fontSize: 14,
-                  cursor: "pointer",
-                  letterSpacing: 0.5,
-                  fontFamily: "inherit",
-                }}
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Contact modal ── */}
-      {showContact && (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 50,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(0,0,10,0.85)",
-            backdropFilter: "blur(8px)",
-          }}
-        >
-          <div
-            style={{
-              width: 480,
-              maxWidth: "92vw",
-              background: "rgba(12,4,28,0.98)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 20,
-              padding: "26px 28px",
-              boxShadow: "0 0 80px rgba(123,47,247,0.3)",
-              fontFamily: "'Inter','Segoe UI',sans-serif",
-            }}
-          >
-            {/* Header */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 22,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <Phone size={18} color="#aa66ff" />
-                <span style={{ fontSize: 17, fontWeight: 800, color: "#fff" }}>
-                  Contacto
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  setShowContact(false);
-                  setRunning(true);
-                }}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "rgba(255,255,255,0.45)",
-                  padding: 4,
-                  display: "flex",
-                }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Creator card */}
-            <div
-              style={{
-                textAlign: "center",
-                marginBottom: 22,
-                padding: "18px 0",
-              }}
-            >
-              <div
-                style={{
-                  width: 64,
-                  height: 64,
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg,#7b2ff7,#00c3ff)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 22,
-                  fontWeight: 800,
-                  color: "#fff",
-                  margin: "0 auto 12px",
-                  boxShadow: "0 0 24px rgba(123,47,247,0.5)",
-                }}
-              >
-                JA
-              </div>
-              <div
-                style={{
-                  fontSize: 20,
-                  fontWeight: 800,
-                  color: "#fff",
-                  letterSpacing: 0.5,
-                }}
-              >
-                Jerry Alafo
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "rgba(255,255,255,0.4)",
-                  marginTop: 4,
-                }}
-              >
-                Criador · Last Stand Arena
-              </div>
-            </div>
-
-            {/* Contact items */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {(
-                [
-                  {
-                    label: "Email",
-                    value: "jerryalafo20@gmail.com",
-                    href: "mailto:jerryalafo20@gmail.com",
-                    color: "#ea4335",
-                    glow: "rgba(234,67,53,0.25)",
-                    icon: <Mail size={18} />,
-                  },
-                  {
-                    label: "WhatsApp",
-                    value: "+258 833 066 530",
-                    href: "https://wa.me/258833066530",
-                    color: "#25d366",
-                    glow: "rgba(37,211,102,0.25)",
-                    icon: <MessageCircle size={18} />,
-                  },
-                  {
-                    label: "Instagram",
-                    value: "@jerry_org_",
-                    href: "https://www.instagram.com/jerry_org_/",
-                    color: "#e1306c",
-                    glow: "rgba(225,48,108,0.25)",
-                    icon: <Camera size={18} />,
-                  },
-                  {
-                    label: "Instagram (trabalhos)",
-                    value: "@jerry_org_jobs",
-                    href: "https://www.instagram.com/jerry_org_jobs/",
-                    color: "#c13584",
-                    glow: "rgba(193,53,132,0.25)",
-                    icon: <Briefcase size={18} />,
-                  },
-                ] as {
-                  label: string;
-                  value: string;
-                  href: string;
-                  color: string;
-                  glow: string;
-                  icon: React.ReactNode;
-                }[]
-              ).map((c) => (
-                <a
-                  key={c.value}
-                  href={c.href}
-                  target={c.href.startsWith("mailto") ? undefined : "_blank"}
-                  rel="noopener noreferrer"
-                  style={{ textDecoration: "none" }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 14,
-                      padding: "13px 16px",
-                      background: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.07)",
-                      borderRadius: 12,
-                      cursor: "pointer",
-                      transition: "all 0.2s",
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.background =
-                        "rgba(255,255,255,0.06)";
-                      (e.currentTarget as HTMLDivElement).style.borderColor =
-                        `${c.color}44`;
-                      (e.currentTarget as HTMLDivElement).style.boxShadow =
-                        `0 0 16px ${c.glow}`;
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.background =
-                        "rgba(255,255,255,0.03)";
-                      (e.currentTarget as HTMLDivElement).style.borderColor =
-                        "rgba(255,255,255,0.07)";
-                      (e.currentTarget as HTMLDivElement).style.boxShadow =
-                        "none";
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 10,
-                        background: `${c.color}18`,
-                        border: `1px solid ${c.color}33`,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: c.color,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {c.icon}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          fontSize: 10,
-                          color: "rgba(255,255,255,0.35)",
-                          letterSpacing: 1.5,
-                          textTransform: "uppercase",
-                          marginBottom: 2,
-                          fontFamily: "monospace",
-                        }}
-                      >
-                        {c.label}
-                      </div>
-                      <div
-                        style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}
-                      >
-                        {c.value}
-                      </div>
-                    </div>
-                    <ExternalLink size={13} color="rgba(255,255,255,0.25)" />
-                  </div>
-                </a>
-              ))}
-            </div>
-
-            <button
-              onClick={() => {
-                setShowContact(false);
-                setShowSettings(true);
-              }}
-              style={{
-                marginTop: 18,
-                width: "100%",
-                padding: "11px",
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 10,
-                color: "rgba(255,255,255,0.6)",
-                fontWeight: 600,
-                fontSize: 13,
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              <ArrowLeft
-                size={14}
-                style={{ marginRight: 6, verticalAlign: "middle" }}
-              />
-              Voltar às Configurações
-            </button>
-          </div>
-        </div>
-      )}
 
       <style>{`
         @keyframes ultPulse {
@@ -1929,555 +1047,48 @@ export default function HUD() {
 
       {/* ── Main menu / Start overlay (first time, or after going to menu) ── */}
       {!running && !gameOver && !hasEverStarted && (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            background:
-              "radial-gradient(ellipse at 50% 35%, rgba(42,16,80,0.97) 0%, rgba(14,5,32,0.98) 60%, rgba(8,2,20,0.99) 100%)",
-            backdropFilter: "blur(16px)",
-            zIndex: 10,
-          }}
-        >
-          {/* Glow blobs */}
-          <div
-            style={{
-              position: "absolute",
-              top: "10%",
-              left: "10%",
-              width: 300,
-              height: 300,
-              borderRadius: "50%",
-              background:
-                "radial-gradient(circle, rgba(123,47,247,0.18) 0%, transparent 70%)",
-              pointerEvents: "none",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              bottom: "10%",
-              right: "8%",
-              width: 260,
-              height: 260,
-              borderRadius: "50%",
-              background:
-                "radial-gradient(circle, rgba(231,76,60,0.12) 0%, transparent 70%)",
-              pointerEvents: "none",
-            }}
-          />
-
-          <Swords
-            size={52}
-            color="#e74c3c"
-            strokeWidth={1.5}
-            style={{
-              marginBottom: 18,
-              filter: "drop-shadow(0 0 16px #e74c3c88)",
-              position: "relative",
-              zIndex: 1,
-            }}
-          />
-          <div
-            style={{
-              color: "#fff",
-              fontSize: 28,
-              fontWeight: 900,
-              letterSpacing: 3,
-              fontFamily: "monospace",
-              marginBottom: 4,
-              position: "relative",
-              zIndex: 1,
-              background: "linear-gradient(135deg,#fff,#dd99ff)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            Last Stand Arena
-          </div>
-          <div
-            style={{
-              fontSize: 11,
-              letterSpacing: 4,
-              color: "rgba(200,150,255,0.6)",
-              textTransform: "uppercase",
-              fontFamily: "monospace",
-              marginBottom: 22,
-              position: "relative",
-              zIndex: 1,
-            }}
-          >
-            por Jerry Alafo
-          </div>
-          <div
-            style={{
-              color: "rgba(255,255,255,0.45)",
-              fontSize: isMobile ? 13 : 12,
-              marginBottom: 30,
-              textAlign: "center",
-              lineHeight: 2.2,
-              fontFamily: "monospace",
-              position: "relative",
-              zIndex: 1,
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 12,
-              padding: "12px 24px",
-              backdropFilter: "blur(8px)",
-            }}
-          >
-            {isMobile ? (
-              <>
-                Sobrevive às waves de inimigos
-                <br />
-                <span style={{ color: "#7b2ff7" }}>Joystick</span> para mover ·{" "}
-                <span style={{ color: "#f39c12" }}>ataque automático</span>
-                <br />
-                <span style={{ color: "#2ecc71" }}>DASH</span> para esquivar ·{" "}
-                <span
-                  style={{
-                    color: "#ffdd00",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 3,
-                    verticalAlign: "middle",
-                  }}
-                >
-                  <Zap size={11} />
-                </span>{" "}
-                fúria final (15 kills)
-              </>
-            ) : (
-              <>
-                Sobrevive às waves de inimigos
-                <br />
-                <span style={{ color: "#7b2ff7" }}>WASD</span> mover ·{" "}
-                <span style={{ color: "#f39c12" }}>ataque automático</span> ·{" "}
-                <span style={{ color: "#2ecc71" }}>Q</span> dash ·{" "}
-                <span style={{ color: "#ffdd00" }}>E</span> fúria final (15
-                kills)
-              </>
-            )}
-          </div>
-          <Button
-            onClick={() => reset()}
-            variant="contained"
-            startIcon={<Swords size={18} />}
-            sx={{
-              background: "linear-gradient(135deg, #c0392b, #e74c3c)",
-              color: "#fff",
-              fontSize: 16,
-              fontWeight: 800,
-              letterSpacing: 2,
-              fontFamily: "monospace",
-              px: 7,
-              py: 2,
-              borderRadius: 2,
-              textTransform: "none",
-              boxShadow: "0 0 32px rgba(231,76,60,0.55)",
-              position: "relative",
-              zIndex: 1,
-              "&:hover": {
-                background: "linear-gradient(135deg, #a93226, #c0392b)",
-                boxShadow: "0 0 44px rgba(231,76,60,0.75)",
-              },
-            }}
-          >
-            ENTRAR NA ARENA
-          </Button>
-
-          {/* Nav links */}
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 8,
-              marginTop: 20,
-              position: "relative",
-              zIndex: 1,
-              justifyContent: "center",
-              maxWidth: 420,
-            }}
-          >
-            <button
-              onClick={() => router.push("/stats")}
-              style={{
-                padding: "8px 18px",
-                borderRadius: 8,
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(255,255,255,0.05)",
-                color: "rgba(255,255,255,0.6)",
-                fontSize: 12,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontFamily: "inherit",
-                backdropFilter: "blur(8px)",
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background =
-                  "rgba(255,255,255,0.1)";
-                (e.currentTarget as HTMLButtonElement).style.color = "#fff";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background =
-                  "rgba(255,255,255,0.05)";
-                (e.currentTarget as HTMLButtonElement).style.color =
-                  "rgba(255,255,255,0.6)";
-              }}
-            >
-              <BarChart2 size={13} /> Estatísticas
-            </button>
-            <button
-              onClick={() => router.push("/leaderboard")}
-              style={{
-                padding: "8px 18px",
-                borderRadius: 8,
-                border: "1px solid rgba(255,215,0,0.2)",
-                background: "rgba(255,215,0,0.05)",
-                color: "rgba(255,215,0,0.7)",
-                fontSize: 12,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontFamily: "inherit",
-                backdropFilter: "blur(8px)",
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background =
-                  "rgba(255,215,0,0.12)";
-                (e.currentTarget as HTMLButtonElement).style.color = "#ffd700";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background =
-                  "rgba(255,215,0,0.05)";
-                (e.currentTarget as HTMLButtonElement).style.color =
-                  "rgba(255,215,0,0.7)";
-              }}
-            >
-              <Trophy size={13} /> Leaderboard
-            </button>
-            <button
-              onClick={() => router.push("/donate")}
-              style={{
-                padding: "8px 18px",
-                borderRadius: 8,
-                border: "1px solid rgba(255,100,150,0.25)",
-                background: "rgba(255,80,120,0.06)",
-                color: "rgba(255,150,180,0.75)",
-                fontSize: 12,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontFamily: "inherit",
-                backdropFilter: "blur(8px)",
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background =
-                  "rgba(255,80,120,0.14)";
-                (e.currentTarget as HTMLButtonElement).style.color = "#ff99bb";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background =
-                  "rgba(255,80,120,0.06)";
-                (e.currentTarget as HTMLButtonElement).style.color =
-                  "rgba(255,150,180,0.75)";
-              }}
-            >
-              <Heart size={13} /> Apoiar
-            </button>
-            <button
-              onClick={() => { setShowSettings(true); }}
-              style={{
-                padding: "8px 18px", borderRadius: 8,
-                border: "1px solid rgba(255,255,255,0.1)",
-                background: "rgba(255,255,255,0.04)",
-                color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer",
-                display: "flex", alignItems: "center", gap: 6,
-                fontFamily: "inherit", backdropFilter: "blur(8px)", transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.09)"; (e.currentTarget as HTMLButtonElement).style.color = "#fff"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.5)"; }}
-            >
-              <Settings size={13} /> Config
-            </button>
-            <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              style={{
-                padding: "8px 18px", borderRadius: 8,
-                border: "1px solid rgba(231,76,60,0.2)",
-                background: "rgba(231,76,60,0.05)",
-                color: "rgba(255,120,120,0.6)", fontSize: 12, cursor: "pointer",
-                display: "flex", alignItems: "center", gap: 6,
-                fontFamily: "inherit", backdropFilter: "blur(8px)", transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(231,76,60,0.12)"; (e.currentTarget as HTMLButtonElement).style.color = "#ff8888"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(231,76,60,0.05)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,120,120,0.6)"; }}
-            >
-              <LogOut size={13} /> Sair
-            </button>
-          </div>
-
-        </div>
+        <MainMenuOverlay
+          session={session}
+          isMobile={isMobile}
+          dayTime={dayTime}
+          kills={kills}
+          best={best}
+          score={score}
+          onStart={() => reset()}
+          onSettings={() => setShowSettings(true)}
+          router={router}
+          multiProps={multiProps}
+        />
       )}
 
       {/* ── Game Over ── */}
       {gameOver && (
-        <div
+        <GameOverScreen
+          score={score}
+          wave={wave}
+          kills={kills}
+          best={best}
+          isMobile={isMobile}
+          onPlayAgain={() => reset()}
+          onMenu={goToMenu}
+          router={router}
+        />
+      )}
+
+      {/* ── Abandonar button — mobile PVP only ── */}
+      {isMobile && running && !gameOver && multiProps?.mode === "pvp" && (
+        <button
+          onTouchStart={(e) => { e.preventDefault(); router.push("/multiplayer"); }}
           style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            background:
-              "radial-gradient(ellipse at 50% 35%, rgba(50,10,20,0.97) 0%, rgba(14,5,32,0.98) 60%, rgba(8,2,20,0.99) 100%)",
-            backdropFilter: "blur(16px)",
-            zIndex: 10,
+            position: "absolute", top: 14, left: 14, zIndex: 20,
+            width: 44, height: 44, borderRadius: "50%",
+            background: "rgba(231,76,60,0.82)", border: "1px solid rgba(255,80,80,0.4)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", backdropFilter: "blur(6px)",
           }}
         >
-          {/* Glow blobs */}
-          <div
-            style={{
-              position: "absolute",
-              top: "12%",
-              right: "10%",
-              width: 280,
-              height: 280,
-              borderRadius: "50%",
-              background:
-                "radial-gradient(circle, rgba(231,76,60,0.15) 0%, transparent 70%)",
-              pointerEvents: "none",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              bottom: "10%",
-              left: "8%",
-              width: 240,
-              height: 240,
-              borderRadius: "50%",
-              background:
-                "radial-gradient(circle, rgba(123,47,247,0.12) 0%, transparent 70%)",
-              pointerEvents: "none",
-            }}
-          />
-          <div
-            style={{
-              marginBottom: 10,
-              filter: "drop-shadow(0 0 20px #e74c3c)",
-              position: "relative",
-              zIndex: 1,
-            }}
-          >
-            <Skull size={isMobile ? 42 : 56} color="#e74c3c" strokeWidth={1.5} />
-          </div>
-          <div
-            style={{
-              color: "#e74c3c",
-              fontSize: isMobile ? 24 : 32,
-              fontWeight: 900,
-              fontFamily: "monospace",
-              letterSpacing: 3,
-              textShadow: "0 0 28px #e74c3c99",
-              position: "relative",
-              zIndex: 1,
-            }}
-          >
-            ELIMINADO
-          </div>
-
-          {/* Score card */}
-          <div
-            style={{
-              margin: "18px 0 6px",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 14,
-              padding: isMobile ? "12px 16px" : "16px 32px",
-              backdropFilter: "blur(12px)",
-              textAlign: "center",
-              position: "relative",
-              zIndex: 1,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                gap: isMobile ? 14 : 28,
-                justifyContent: "center",
-                fontFamily: "monospace",
-              }}
-            >
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 900, color: "#fff" }}>
-                  {score}
-                </div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "rgba(255,255,255,0.35)",
-                    letterSpacing: 1.5,
-                    textTransform: "uppercase",
-                    marginTop: 2,
-                  }}
-                >
-                  pontos
-                </div>
-              </div>
-              <div style={{ width: 1, background: "rgba(255,255,255,0.1)" }} />
-              <div style={{ textAlign: "center" }}>
-                <div
-                  style={{ fontSize: isMobile ? 18 : 22, fontWeight: 900, color: "#f39c12" }}
-                >
-                  {wave}
-                </div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "rgba(255,255,255,0.35)",
-                    letterSpacing: 1.5,
-                    textTransform: "uppercase",
-                    marginTop: 2,
-                  }}
-                >
-                  wave
-                </div>
-              </div>
-              <div style={{ width: 1, background: "rgba(255,255,255,0.1)" }} />
-              <div style={{ textAlign: "center" }}>
-                <div
-                  style={{ fontSize: isMobile ? 18 : 22, fontWeight: 900, color: "#e74c3c" }}
-                >
-                  {kills}
-                </div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "rgba(255,255,255,0.35)",
-                    letterSpacing: 1.5,
-                    textTransform: "uppercase",
-                    marginTop: 2,
-                  }}
-                >
-                  kills
-                </div>
-              </div>
-            </div>
-            {best != null && (
-              <div
-                style={{
-                  marginTop: 10,
-                  paddingTop: 10,
-                  borderTop: "1px solid rgba(255,255,255,0.07)",
-                  fontSize: 12,
-                  color: "rgba(255,255,255,0.35)",
-                  fontFamily: "monospace",
-                }}
-              >
-                Personal best:{" "}
-                <span style={{ color: "#7b2ff7", fontWeight: 700 }}>
-                  {best}
-                </span>
-              </div>
-            )}
-          </div>
-
-          <Box
-            sx={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 1.5,
-              mt: 2,
-              px: isMobile ? 1 : 0,
-              justifyContent: "center",
-              position: "relative",
-              zIndex: 1,
-            }}
-          >
-            <Button
-              onClick={() => reset()}
-              variant="contained"
-              startIcon={<RotateCcw size={isMobile ? 14 : 16} />}
-              sx={{
-                background: "linear-gradient(135deg, #c0392b, #e74c3c)",
-                color: "#fff",
-                fontSize: isMobile ? 12 : 14,
-                fontWeight: 700,
-                letterSpacing: 1,
-                fontFamily: "monospace",
-                px: isMobile ? 2.5 : 5,
-                py: isMobile ? 1.2 : 1.5,
-                borderRadius: 2,
-                textTransform: "none",
-                boxShadow: "0 0 20px rgba(231,76,60,0.4)",
-                "&:hover": {
-                  background: "linear-gradient(135deg, #a93226, #c0392b)",
-                },
-              }}
-            >
-              Tentar de novo
-            </Button>
-            <Button
-              onClick={() => router.push("/leaderboard")}
-              variant="outlined"
-              startIcon={<Trophy size={isMobile ? 14 : 16} />}
-              sx={{
-                color: "#fff",
-                borderColor: "rgba(255,255,255,0.2)",
-                fontSize: isMobile ? 12 : 14,
-                fontWeight: 700,
-                letterSpacing: 1,
-                fontFamily: "monospace",
-                px: isMobile ? 2.5 : 5,
-                py: isMobile ? 1.2 : 1.5,
-                borderRadius: 2,
-                textTransform: "none",
-                backdropFilter: "blur(4px)",
-                "&:hover": {
-                  borderColor: "rgba(255,255,255,0.4)",
-                  bgcolor: "rgba(255,255,255,0.08)",
-                },
-              }}
-            >
-              Leaderboard
-            </Button>
-            <Button
-              onClick={goToMenu}
-              variant="outlined"
-              startIcon={<Home size={isMobile ? 14 : 16} />}
-              sx={{
-                color: "rgba(255,160,160,0.85)",
-                borderColor: "rgba(255,100,100,0.3)",
-                fontSize: isMobile ? 12 : 14,
-                fontWeight: 700,
-                fontFamily: "monospace",
-                px: isMobile ? 2 : 4,
-                py: isMobile ? 1.2 : 1.5,
-                borderRadius: 2,
-                textTransform: "none",
-                "&:hover": {
-                  borderColor: "rgba(255,100,100,0.5)",
-                  bgcolor: "rgba(255,50,50,0.06)",
-                },
-              }}
-            >
-              Menu
-            </Button>
-          </Box>
-        </div>
+          <LogOut size={18} color="#fff" />
+        </button>
       )}
 
       {/* ── Virtual controls — mobile: show only during active gameplay ── */}
