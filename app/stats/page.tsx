@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import { ArrowLeft, Users, Gamepad2, Trophy, Crown, Swords, Zap, Star } from "lucide-react";
 
 interface PlayerStat {
@@ -50,6 +51,7 @@ function StatCard({ icon, label, value, color, glow }: { icon: React.ReactNode; 
 
 export default function StatsPage() {
   const router = useRouter();
+  const isMobile = useMediaQuery("(max-width:600px)");
   const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -144,17 +146,17 @@ export default function StatsPage() {
                     const color = RANK_COLORS[i] ?? "#7b2ff7";
                     const grad = BAR_GRADIENT[i] ?? "linear-gradient(90deg,#7b2ff7,#aa55ff)";
                     return (
-                      <Box key={p.username} sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <Box key={p.username} sx={{ display: "flex", alignItems: "center", gap: isMobile ? 1 : 2, minWidth: 0 }}>
                         {/* Rank */}
-                        <Typography sx={{ width: 24, fontSize: 13, fontWeight: 800, color, textAlign: "right", flexShrink: 0 }}>
+                        <Typography sx={{ width: 20, fontSize: 13, fontWeight: 800, color, textAlign: "right", flexShrink: 0 }}>
                           {i + 1}
                         </Typography>
                         {/* Name */}
-                        <Typography sx={{ width: 120, fontSize: 14, fontWeight: 600, color: "#fff", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <Typography sx={{ width: isMobile ? 80 : 120, fontSize: isMobile ? 13 : 14, fontWeight: 600, color: "#fff", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {p.username}
                         </Typography>
                         {/* Bar */}
-                        <Box sx={{ flex: 1, height: 20, background: "rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden", position: "relative" }}>
+                        <Box sx={{ flex: 1, minWidth: 0, height: 18, background: "rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
                           <Box sx={{
                             height: "100%", width: `${pct}%`, borderRadius: 10,
                             background: grad,
@@ -163,15 +165,17 @@ export default function StatsPage() {
                           }} />
                         </Box>
                         {/* Score */}
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, width: 90, justifyContent: "flex-end", flexShrink: 0 }}>
-                          <Zap size={12} color={color} />
-                          <Typography sx={{ fontSize: 14, fontWeight: 700, color }}>{p.bestScore.toLocaleString()}</Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, width: isMobile ? 70 : 90, justifyContent: "flex-end", flexShrink: 0 }}>
+                          <Zap size={11} color={color} />
+                          <Typography sx={{ fontSize: isMobile ? 12 : 14, fontWeight: 700, color }}>{p.bestScore.toLocaleString()}</Typography>
                         </Box>
-                        {/* Kills */}
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, width: 70, justifyContent: "flex-end", flexShrink: 0 }}>
-                          <Swords size={11} color="#e74c3c" />
-                          <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{p.totalKills}</Typography>
-                        </Box>
+                        {/* Kills — hidden on very narrow screens */}
+                        {!isMobile && (
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, width: 70, justifyContent: "flex-end", flexShrink: 0 }}>
+                            <Swords size={11} color="#e74c3c" />
+                            <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{p.totalKills}</Typography>
+                          </Box>
+                        )}
                       </Box>
                     );
                   })}

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readScoresLines } from "@/lib/fileStore";
+import { readUsersLines, readScoresLines } from "@/lib/fileStore";
 
 function parseScoreLine(line: string) {
   const [username, scoreS, waveS, killsS, timestampS] = line.split("|");
@@ -20,19 +20,27 @@ function parseScoreLine(line: string) {
 }
 
 export async function GET() {
-  const lines = await readScoresLines();
-  const rows = lines
-    .map(parseScoreLine)
-    .filter((r): r is NonNullable<ReturnType<typeof parseScoreLine>> => !!r);
+  const [userLines, scoreLines] = await Promise.all([readUsersLines(), readScoresLines()]);
 
-  rows.sort((a, b) => b.score - a.score);
-  const top = rows.slice(0, 10).map((r) => ({
-    username: r.username,
-    score: r.score,
-    wave: r.wave,
-    kills: r.kills,
-    date: new Date(r.timestamp).toISOString(),
-  }));
+  // Seed every registered user with a zero entry
+  const map = new Map<string, { username: string; score: number; wave: number; kills: number; date: string }>();
+  for (const line of userLines) {
+    const username = line.split("|")[0];
+    if (username) map.set(username, { username, score: 0, wave: 0, kills: 0, date: "" });
+  }
+
+  // Override with best score per player from scores.txt
+  const rows = scoreLines.map(parseScoreLine).filter((r): r is NonNullable<ReturnType<typeof parseScoreLine>> => !!r);
+  for (const r of rows) {
+    const prev = map.get(r.username);
+    if (!prev || r.score > prev.score) {
+      map.set(r.username, { username: r.username, score: r.score, wave: r.wave, kills: r.kills, date: new Date(r.timestamp).toISOString() });
+    }
+  }
+
+  const top = Array.from(map.values())
+    .sort((a, b) => b.score - a.score || a.username.localeCompare(b.username))
+    .slice(0, 10);
 
   return NextResponse.json({ scores: top });
 }
