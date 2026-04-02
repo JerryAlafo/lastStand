@@ -6,3 +6,4 @@
 {"id":"618782","mode":"pvp","host":"JoyBoy","guest":"deoderso","status":"playing","createdAt":1775061810726}
 {"id":"d1fd9a","mode":"coop","host":"JoyBoy","guest":"acossa","status":"playing","createdAt":1775080522030}
 {"id":"1d44ff","mode":"pvp","host":"JoyBoy","guest":"acossa","status":"playing","createdAt":1775080774644}
+{"id":"766c08","mode":null,"host":"JoyBoy","guest":null,"status":"waiting","createdAt":1775099728965}
