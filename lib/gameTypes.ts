@@ -33,11 +33,10 @@ export interface Pickup {
 }
 
 export interface Particle {
-  mesh: THREE.Mesh;
-  vx: number;
-  vy: number;
-  vz: number;
+  x: number; y: number; z: number;
+  vx: number; vy: number; vz: number;
   life: number;
+  r: number; g: number; b: number;
 }
 
 export interface MultiProps {

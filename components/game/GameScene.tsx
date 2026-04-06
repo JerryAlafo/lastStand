@@ -33,25 +33,28 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
     const el = mountRef.current;
     const isMobile = window.matchMedia("(pointer: coarse)").matches;
     const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const isWeak = isMobile || isIOS || isAndroid;
 
     // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: !isMobile && !isIOS, powerPreference: "high-performance" });
-    renderer.setPixelRatio(isIOS ? 1 : isMobile ? Math.min(devicePixelRatio, 1.5) : Math.min(devicePixelRatio, 2));
-    renderer.shadowMap.enabled = !isMobile && !isIOS;
+    const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+    renderer.setPixelRatio(isWeak ? 1 : Math.min(devicePixelRatio, 1.5));
+    renderer.shadowMap.enabled = false;
     renderer.setClearColor(0x050010);
     renderer.setSize(el.clientWidth, el.clientHeight);
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050010);
-    scene.fog = new THREE.Fog(0x0a0020, isMobile ? 30 : 60, isMobile ? 90 : 220);
+    scene.fog = new THREE.Fog(0x0a0020, isWeak ? 30 : 60, isWeak ? 80 : 220);
 
     // Build arena (starfield, clouds, camera, lights, floor, bleachers…)
+    // Pass isWeak as isMobile so arenaBuilder applies all optimisations
     const {
       camera, ambientLight, sun, arenaLight, ring,
       clouds, cloudMat, spectatorList,
       skyNight, skyDay, fogNight, fogDay, ambNight, ambDay, DAY_CYCLE,
-    } = buildArena(scene, isMobile);
+    } = buildArena(scene, isWeak);
     camera.aspect = el.clientWidth / el.clientHeight;
     camera.updateProjectionMatrix();
 
@@ -109,8 +112,8 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
       { name: "⬆ speed",    color: 0x2ecc71, effect: "speed" },
     ];
 
-    const { spawnBullet, spawnEnemy, spawnPickup, spawnParticles } = createSpawner({
-      scene, AR, enemies, bullets, pickups, particles, bulletGeo, bulletMat, pickupGeo, puTypes,
+    const { spawnBullet, spawnEnemy, spawnPickup, spawnParticles, tickParticles } = createSpawner({
+      scene, AR, enemies, bullets, pickups, particles, bulletGeo, bulletMat, pickupGeo, puTypes, isMobile: isWeak,
     });
 
     // Input
@@ -525,21 +528,21 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
         if (multiProps?.mode === "pvp" && remoteRig) {
           const dx = b.mesh.position.x - remoteRig.root.position.x;
           const dz = b.mesh.position.z - remoteRig.root.position.z;
-          if (Math.sqrt(dx * dx + dz * dz) < 0.75) { pendingRemoteHits++; spawnParticles(b.mesh.position.clone(), 0xff4444, 4); hit = true; }
+          if (dx * dx + dz * dz < 0.5625) { pendingRemoteHits++; spawnParticles(b.mesh.position.clone(), 0xff4444, 4); hit = true; }
         }
         if (!hit) {
           if (multiProps?.mode === "coop" && multiProps.role === "guest") {
             for (const [eid, re] of Array.from(remoteEnemyMap)) {
               const ddx = b.mesh.position.x - re.group.position.x;
               const ddz = b.mesh.position.z - re.group.position.z;
-              if (Math.sqrt(ddx * ddx + ddz * ddz) < 0.75) { pendingEnemyHitsBuffer.push({ id: eid, damage: 1 }); spawnParticles(b.mesh.position.clone(), re.col, 4); hit = true; break; }
+              if (ddx * ddx + ddz * ddz < 0.5625) { pendingEnemyHitsBuffer.push({ id: eid, damage: 1 }); spawnParticles(b.mesh.position.clone(), re.col, 4); hit = true; break; }
             }
           } else {
             for (let ei = enemies.length - 1; ei >= 0; ei--) {
               const en = enemies[ei];
               const dx = b.mesh.position.x - en.mesh.position.x;
               const dz = b.mesh.position.z - en.mesh.position.z;
-              if (Math.sqrt(dx * dx + dz * dz) < 0.75) {
+              if (dx * dx + dz * dz < 0.5625) {
                 en.hp--; en.hitTimer = 7;
                 const ratio = Math.max(0, en.hp / en.maxHp);
                 en.hpFg.scale.x = ratio; en.hpFg.position.x = -(0.9 * (1 - ratio)) / 2;
@@ -590,7 +593,7 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
           if (playerDmgTimer > 0) return;
           const edx = re.group.position.x - playerMesh.position.x;
           const edz = re.group.position.z - playerMesh.position.z;
-          if (Math.sqrt(edx * edx + edz * edz) < 1.0) {
+          if (edx * edx + edz * edz < 1.0) {
             playerDmgTimer = 45; storeRef.current.damage(1);
             spawnParticles(playerMesh.position.clone(), 0xe74c3c, 5);
             camera.position.x += (Math.random() - 0.5) * 0.6; camera.position.z += (Math.random() - 0.5) * 0.6;
@@ -606,7 +609,7 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
         pk.life--;
         const dx = pk.mesh.position.x - playerMesh.position.x;
         const dz = pk.mesh.position.z - playerMesh.position.z;
-        if (Math.sqrt(dx * dx + dz * dz) < 1.1) {
+        if (dx * dx + dz * dz < 1.21) {
           storeRef.current.applyEffect(pk.effect as any); spawnParticles(pk.mesh.position.clone(), pk.color, 8);
           storeRef.current.setWaveMessage(pk.name + "!"); scene.remove(pk.mesh); pickups.splice(pi, 1); continue;
         }
@@ -621,7 +624,7 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
           pmesh.position.y = 0.5 + Math.sin(frame * 0.06 + rpi) * 0.18;
           const pdx = pmesh.position.x - playerMesh.position.x;
           const pdz = pmesh.position.z - playerMesh.position.z;
-          if (Math.sqrt(pdx * pdx + pdz * pdz) < 1.1) {
+          if (pdx * pdx + pdz * pdz < 1.21) {
             const pu = remotePickupEffects.get(pid);
             if (pu) { storeRef.current.applyEffect(pu.effect as any); spawnParticles(pmesh.position.clone(), pu.color, 8); storeRef.current.setWaveMessage(pu.name + "!"); }
             scene.remove(pmesh); remotePickupMap.delete(pid); remotePickupEffects.delete(pid); removePickupIdBuffer = pid;
@@ -630,20 +633,16 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
         }
       }
 
-      // Particles
-      for (let pi = particles.length - 1; pi >= 0; pi--) {
-        const p = particles[pi];
-        p.life -= 0.04; p.mesh.position.x += p.vx; p.mesh.position.y += p.vy; p.mesh.position.z += p.vz; p.vy -= 0.007;
-        (p.mesh.material as THREE.MeshBasicMaterial).opacity = p.life;
-        (p.mesh.material as THREE.MeshBasicMaterial).transparent = true;
-        if (p.life <= 0) { scene.remove(p.mesh); particles.splice(pi, 1); }
-      }
+      // Particles — handled by InstancedMesh in spawner
+      tickParticles();
 
-      // Spectators
-      for (const sp of spectatorList) {
-        const cheer = Math.sin(frame * 0.32 + sp.animOffset) * 0.22 + 0.18;
-        sp.armL.rotation.z = 0.4 + cheer; sp.armR.rotation.z = -0.4 - cheer;
-        sp.group.position.y = 0.14 + Math.sin(frame * 0.18 + sp.animOffset) * 0.015;
+      // Spectators — update every 3 frames to save CPU
+      if (frame % 3 === 0) {
+        for (const sp of spectatorList) {
+          const cheer = Math.sin(frame * 0.32 + sp.animOffset) * 0.22 + 0.18;
+          sp.armL.rotation.z = 0.4 + cheer; sp.armR.rotation.z = -0.4 - cheer;
+          sp.group.position.y = 0.14 + Math.sin(frame * 0.18 + sp.animOffset) * 0.015;
+        }
       }
 
       arenaLight.intensity = 1.2 + Math.sin(frame * 0.04) * 0.4;

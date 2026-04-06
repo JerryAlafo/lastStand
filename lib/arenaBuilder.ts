@@ -21,9 +21,13 @@ export interface ArenaResult {
 }
 
 export function buildArena(scene: THREE.Scene, isMobile: boolean): ArenaResult {
+  // Weak device: Android, iOS, or any mobile (use minimal scene)
+  const isAndroid = /Android/i.test(typeof navigator !== "undefined" ? navigator.userAgent : "");
+  const isWeak = isMobile || isAndroid;
+
   // Starfield
   {
-    const starCount = isMobile ? 500 : 1800;
+    const starCount = isWeak ? 300 : 1800;
     const positions = new Float32Array(starCount * 3);
     for (let i = 0; i < starCount; i++) {
       const theta = Math.random() * Math.PI * 2;
@@ -43,7 +47,7 @@ export function buildArena(scene: THREE.Scene, isMobile: boolean): ArenaResult {
   // Clouds
   const clouds: CloudEntry[] = [];
   let cloudMat: THREE.MeshStandardMaterial | null = null;
-  if (!isMobile) {
+  if (!isWeak) {
     cloudMat = new THREE.MeshStandardMaterial({ color: 0x223344, transparent: true, opacity: 0.18, roughness: 1, metalness: 0, depthWrite: false });
     for (let ci = 0; ci < 7; ci++) {
       const group = new THREE.Group();
@@ -111,19 +115,19 @@ export function buildArena(scene: THREE.Scene, isMobile: boolean): ArenaResult {
 
   // Floor & grid
   const floor = new THREE.Mesh(
-    new THREE.CylinderGeometry(AR, AR, 0.4, isMobile ? 24 : 64),
+    new THREE.CylinderGeometry(AR, AR, 0.4, isWeak ? 20 : 48),
     new THREE.MeshStandardMaterial({ color: 0x302f55, roughness: 0.95 }),
   );
   floor.position.y = -0.2; floor.receiveShadow = true; scene.add(floor);
   const grid = new THREE.GridHelper(AR * 2, 40, 0x553366, 0x221122);
   grid.position.y = 0.02; scene.add(grid);
   const centerField = new THREE.Mesh(
-    new THREE.RingGeometry(0.6, AR - 1.3, isMobile ? 32 : 96),
+    new THREE.RingGeometry(0.6, AR - 1.3, isWeak ? 24 : 64),
     new THREE.MeshStandardMaterial({ color: 0x101428, roughness: 0.95, metalness: 0.05, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }),
   );
   centerField.rotation.x = -Math.PI / 2; centerField.position.y = -0.145; scene.add(centerField);
   const ringFloor = new THREE.Mesh(
-    new THREE.RingGeometry(1.5, 3.2, isMobile ? 32 : 96),
+    new THREE.RingGeometry(1.5, 3.2, isWeak ? 24 : 64),
     new THREE.MeshStandardMaterial({ color: 0x44527b, roughness: 0.9, metalness: 0.15, side: THREE.DoubleSide }),
   );
   ringFloor.rotation.x = -Math.PI / 2; ringFloor.position.y = -0.14; scene.add(ringFloor);
@@ -143,7 +147,7 @@ export function buildArena(scene: THREE.Scene, isMobile: boolean): ArenaResult {
 
   // Boundary ring + pillars
   const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(AR, 0.18, 6, isMobile ? 32 : 64),
+    new THREE.TorusGeometry(AR, 0.18, 6, isWeak ? 24 : 48),
     new THREE.MeshBasicMaterial({ color: 0xff2244 }),
   );
   ring.rotation.x = Math.PI / 2; ring.position.y = 0.05; scene.add(ring);
@@ -169,7 +173,7 @@ export function buildArena(scene: THREE.Scene, isMobile: boolean): ArenaResult {
       bleachers.add(bench);
     }
   }
-  if (!isMobile) {
+  if (!isWeak) {
     const buildSpec = (color: number, skin: number) => {
       const g = new THREE.Group();
       const body = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.14, 0.54, 10), new THREE.MeshStandardMaterial({ color, roughness: 0.65 }));
@@ -218,20 +222,14 @@ export function buildArena(scene: THREE.Scene, isMobile: boolean): ArenaResult {
     screen.rotation.y = a + Math.PI / 2; scene.add(screen);
   }
 
-  // Stadium lights
-  if (!isMobile) {
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const light = new THREE.SpotLight(0xffffff, 1.6, 80, Math.PI / 6, 0.35, 1);
-      light.position.set(Math.cos(angle) * (AR + 3), 8.3, Math.sin(angle) * (AR + 3));
-      light.target.position.set(0, 0, 0); scene.add(light); scene.add(light.target);
-    }
-    const cornerColors = [0xffa500, 0xffffff];
+  // Stadium atmosphere lights — simple PointLights only, no SpotLights (too expensive)
+  if (!isWeak) {
+    const cornerColors = [0xffa500, 0x8888ff, 0xff6600, 0x44aaff];
     for (let i = 0; i < 4; i++) {
       const angle = (i / 4) * Math.PI * 2;
-      const light = new THREE.SpotLight(cornerColors[i % 2], 2.2, 60, 0.5, 0.5, 1);
-      light.position.set(Math.cos(angle) * (AR + 9), 10, Math.sin(angle) * (AR + 9));
-      light.target.position.set(0, 0, 0); scene.add(light); scene.add(light.target);
+      const light = new THREE.PointLight(cornerColors[i], 1.2, 55);
+      light.position.set(Math.cos(angle) * (AR + 6), 9, Math.sin(angle) * (AR + 6));
+      scene.add(light);
     }
   }
 
