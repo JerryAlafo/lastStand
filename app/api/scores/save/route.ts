@@ -5,6 +5,7 @@ import {
   appendScoreLine, readScoresLines, appendWeeklyLine,
   getUserLevel, upsertUserLevel, getUserAchievements, appendAchievementLine,
   upsertMissionProgress, getMissionProgress, readPvpWinsLines,
+  readWeeklyLines, readPushMeta, setPushMeta,
 } from "@/lib/fileStore";
 import {
   getLevel, xpForGame, getDailyMissions, getTodayDate,
@@ -80,6 +81,59 @@ export async function POST(req: NextRequest) {
       if (newProg !== (prevProgress[m.id] ?? 0)) {
         await upsertMissionProgress(username, today, m.id, newProg);
       }
+    }
+
+    // 6. Check for new #1 and broadcast push notification
+    try {
+      const [allScores, weeklyLines, meta] = await Promise.all([
+        readScoresLines(), readWeeklyLines(), readPushMeta(),
+      ]);
+
+      // Best score per player (global)
+      const globalBest = new Map<string, number>();
+      for (const l of allScores) {
+        const [u, s] = l.split("|");
+        const sc = Number(s) || 0;
+        if (u && sc > (globalBest.get(u) ?? 0)) globalBest.set(u, sc);
+      }
+      const globalTop = Array.from(globalBest.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+
+      const weekId = getWeekId();
+      const weekBest = new Map<string, number>();
+      for (const l of weeklyLines) {
+        const [u, s, , , wk] = l.split("|");
+        if (wk !== weekId) continue;
+        const sc = Number(s) || 0;
+        if (u && sc > (weekBest.get(u) ?? 0)) weekBest.set(u, sc);
+      }
+      const weeklyTop = Array.from(weekBest.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+
+      const { broadcastPush } = await import("@/lib/push");
+      const notifications: Promise<void>[] = [];
+
+      if (globalTop && globalTop !== meta["top1_global"]) {
+        await setPushMeta("top1_global", globalTop);
+        notifications.push(broadcastPush({
+          title: "Novo #1 Global!",
+          body: `${globalTop} assumiu o topo do ranking global. Consegues destroná-lo?`,
+          url: "/leaderboard",
+          tag: "lsa-top1-global",
+        }));
+      }
+
+      if (weeklyTop && weeklyTop !== meta["top1_weekly"]) {
+        await setPushMeta("top1_weekly", weeklyTop);
+        notifications.push(broadcastPush({
+          title: "Novo #1 Semanal!",
+          body: `${weeklyTop} lidera o ranking desta semana. Entra agora e reage!`,
+          url: "/leaderboard",
+          tag: "lsa-top1-weekly",
+        }));
+      }
+
+      await Promise.allSettled(notifications);
+    } catch {
+      // Push failures must never break score saving
     }
 
     return NextResponse.json({

@@ -14,8 +14,11 @@ import {
   Shield,
   Sword,
   Wand2,
+  Bell,
+  BellOff,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
+import { useState, useEffect } from "react";
 import { Session } from "next-auth";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { MultiProps } from "@/lib/gameTypes";
@@ -41,6 +44,44 @@ export default function MainMenuOverlay({
   levelInfo?: LevelInfo | null;
   onClassChange?: (cls: string) => void;
 }) {
+  const [pushState, setPushState] = useState<"unknown" | "subscribed" | "denied" | "unsupported" | "idle">("unknown");
+  const [pushLoading, setPushLoading] = useState(false);
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setPushState("unsupported"); return;
+    }
+    if (Notification.permission === "denied") { setPushState("denied"); return; }
+    fetch("/api/push/subscribe").then(r => r.json()).then((d: { subscribed?: boolean }) => {
+      setPushState(d.subscribed ? "subscribed" : "idle");
+    }).catch(() => setPushState("idle"));
+  }, []);
+
+  async function togglePush() {
+    if (pushLoading || pushState === "unsupported" || pushState === "denied") return;
+    setPushLoading(true);
+    try {
+      if (pushState === "subscribed") {
+        await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ unsubscribe: true }) });
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        await sub?.unsubscribe();
+        setPushState("idle");
+      } else {
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted") { setPushState("denied"); return; }
+        const pubKeyRes = await fetch("/api/push/subscribe");
+        const { publicKey } = await pubKeyRes.json() as { publicKey: string };
+        const reg = await navigator.serviceWorker.register("/sw.js");
+        await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
+        await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subscription: sub.toJSON() }) });
+        setPushState("subscribed");
+      }
+    } catch { /* silent */ }
+    finally { setPushLoading(false); }
+  }
+
   return (
     <div
       style={{
@@ -433,6 +474,31 @@ export default function MainMenuOverlay({
           <Settings size={13} /> Config
         </button>
         <button
+          onClick={togglePush}
+          disabled={pushLoading || pushState === "unsupported" || pushState === "denied"}
+          title={
+            pushState === "subscribed" ? "Desactivar notificações" :
+            pushState === "denied" ? "Notificações bloqueadas no browser" :
+            pushState === "unsupported" ? "Notificações não suportadas" :
+            "Activar notificações"
+          }
+          style={{
+            padding: "10px 12px", borderRadius: 8,
+            border: `1px solid ${pushState === "subscribed" ? "rgba(46,204,113,0.35)" : "rgba(255,255,255,0.1)"}`,
+            background: pushState === "subscribed" ? "rgba(46,204,113,0.08)" : "rgba(255,255,255,0.04)",
+            color: pushState === "subscribed" ? "rgba(100,220,140,0.85)" : pushState === "denied" || pushState === "unsupported" ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.5)",
+            fontSize: 12, cursor: pushState === "unsupported" || pushState === "denied" ? "not-allowed" : "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            fontFamily: "inherit", backdropFilter: "blur(8px)", transition: "all 0.15s",
+            opacity: pushState === "unsupported" || pushState === "denied" ? 0.45 : 1,
+          }}
+          onMouseEnter={(e) => { if (pushState !== "unsupported" && pushState !== "denied") { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.09)"; (e.currentTarget as HTMLButtonElement).style.color = "#fff"; } }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = pushState === "subscribed" ? "rgba(46,204,113,0.08)" : "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLButtonElement).style.color = pushState === "subscribed" ? "rgba(100,220,140,0.85)" : "rgba(255,255,255,0.5)"; }}
+        >
+          {pushState === "subscribed" ? <Bell size={13} /> : <BellOff size={13} />}
+          {pushState === "subscribed" ? "Notif. On" : "Notif. Off"}
+        </button>
+        <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           style={{
             padding: "10px 12px", borderRadius: 8,
@@ -451,4 +517,13 @@ export default function MainMenuOverlay({
 
     </div>
   );
+}
+
+function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr.buffer;
 }

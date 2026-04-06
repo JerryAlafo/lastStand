@@ -12,6 +12,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/material": "^7.3.9",
+    "@types/web-push": "^3.6.4",
     "bcryptjs": "^2.4.3",
     "lucide-react": "^1.7.0",
     "next": "^14.0.0",
@@ -19,6 +20,7 @@
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "three": "^0.160.0",
+    "web-push": "^3.6.7",
     "zustand": "^4.5.0"
   },
   "devDependencies": {

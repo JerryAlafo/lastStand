@@ -23,6 +23,8 @@ const DATA_FILES = {
   achievements: "data/achievements.txt",
   weekly:       "data/weekly_scores.txt",
   missions:     "data/missions.txt",
+  pushSubs:     "data/push_subscriptions.txt",
+  pushMeta:     "data/push_meta.txt",
 } as const;
 
 // ── Write-lock queue (serialises concurrent writes per file) ─────────────────
@@ -275,3 +277,87 @@ export async function upsertMissionProgress(username: string, date: string, miss
 
 export function getUsersPath()  { return path.join(dataDir, "users.txt");  }
 export function getScoresPath() { return path.join(dataDir, "scores.txt"); }
+
+// ── Push subscriptions ────────────────────────────────────────────────────────
+// Format: username|endpoint|p256dh|auth|subscribedAt
+export interface PushSub { username: string; endpoint: string; p256dh: string; auth: string; subscribedAt: number }
+
+export async function readPushSubs(): Promise<PushSub[]> {
+  const lines = await readLines(DATA_FILES.pushSubs);
+  return lines.map(l => {
+    const [username, endpoint, p256dh, auth, ts] = l.split("|");
+    if (!username || !endpoint || !p256dh || !auth) return null;
+    return { username, endpoint, p256dh, auth, subscribedAt: Number(ts) || 0 };
+  }).filter((s): s is PushSub => !!s);
+}
+
+export async function upsertPushSub(sub: PushSub): Promise<void> {
+  await withWriteLock(DATA_FILES.pushSubs + ":upsert", async () => {
+    const lines = await readLines(DATA_FILES.pushSubs);
+    // one subscription per user — replace if exists
+    const idx = lines.findIndex(l => l.split("|")[0] === sub.username);
+    const line = `${sub.username}|${sub.endpoint}|${sub.p256dh}|${sub.auth}|${sub.subscribedAt}`;
+    if (idx >= 0) lines[idx] = line; else lines.push(line);
+    const content = lines.join("\n") + "\n";
+    if (USE_GITHUB) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const file = await ghGet(DATA_FILES.pushSubs);
+        try { await ghPut(DATA_FILES.pushSubs, content, file?.sha ?? null); return; }
+        catch (err) { if (attempt === 0 && err instanceof Error && err.message.includes("409")) continue; throw err; }
+      }
+    } else {
+      const lp = path.join(process.cwd(), DATA_FILES.pushSubs);
+      await ensureLocalFile(lp); await fs.writeFile(lp, content, "utf8");
+    }
+  });
+}
+
+export async function deletePushSub(username: string): Promise<void> {
+  await withWriteLock(DATA_FILES.pushSubs + ":upsert", async () => {
+    const lines = await readLines(DATA_FILES.pushSubs);
+    const filtered = lines.filter(l => l.split("|")[0] !== username);
+    const content = filtered.join("\n") + (filtered.length ? "\n" : "");
+    if (USE_GITHUB) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const file = await ghGet(DATA_FILES.pushSubs);
+        try { await ghPut(DATA_FILES.pushSubs, content, file?.sha ?? null); return; }
+        catch (err) { if (attempt === 0 && err instanceof Error && err.message.includes("409")) continue; throw err; }
+      }
+    } else {
+      const lp = path.join(process.cwd(), DATA_FILES.pushSubs);
+      await ensureLocalFile(lp); await fs.writeFile(lp, content, "utf8");
+    }
+  });
+}
+
+// ── Push meta (last #1 global/weekly + last reminder per user) ────────────────
+// Format: key|value  (e.g. "top1_global|Skullie", "reminder_Skullie|1712345678000")
+export async function readPushMeta(): Promise<Record<string, string>> {
+  const lines = await readLines(DATA_FILES.pushMeta);
+  const map: Record<string, string> = {};
+  for (const l of lines) {
+    const [k, ...rest] = l.split("|");
+    if (k) map[k] = rest.join("|");
+  }
+  return map;
+}
+
+export async function setPushMeta(key: string, value: string): Promise<void> {
+  await withWriteLock(DATA_FILES.pushMeta + ":upsert", async () => {
+    const lines = await readLines(DATA_FILES.pushMeta);
+    const idx = lines.findIndex(l => l.split("|")[0] === key);
+    const line = `${key}|${value}`;
+    if (idx >= 0) lines[idx] = line; else lines.push(line);
+    const content = lines.join("\n") + "\n";
+    if (USE_GITHUB) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const file = await ghGet(DATA_FILES.pushMeta);
+        try { await ghPut(DATA_FILES.pushMeta, content, file?.sha ?? null); return; }
+        catch (err) { if (attempt === 0 && err instanceof Error && err.message.includes("409")) continue; throw err; }
+      }
+    } else {
+      const lp = path.join(process.cwd(), DATA_FILES.pushMeta);
+      await ensureLocalFile(lp); await fs.writeFile(lp, content, "utf8");
+    }
+  });
+}
