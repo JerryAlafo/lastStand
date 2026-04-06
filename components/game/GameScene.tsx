@@ -95,6 +95,12 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
     const auraRing2 = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.05, 6, 28), ringMat2);
     auraRing2.position.y = 0.85; auraRing2.rotation.x = Math.PI / 3; playerMesh.add(auraRing2);
 
+    // Magnet field ring — floor-level torus showing attraction radius
+    const magnetRingMat = new THREE.MeshBasicMaterial({ color: 0x7b2ff7, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+    const magnetRing = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.06, 6, 40), magnetRingMat);
+    magnetRing.position.y = 0.05; magnetRing.rotation.x = Math.PI / 2;
+    playerMesh.add(magnetRing);
+
     // Game objects
     const enemies: Enemy[] = [];
     const bullets: Bullet[] = [];
@@ -104,12 +110,12 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
     const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffdd00 });
     const pickupGeo = new THREE.OctahedronGeometry(0.38, 0);
     const puTypes = [
-      { name: "⚡ rapidfire", color: 0xffdd00, effect: "rapidfire" },
-      { name: "💥 multishot", color: 0xff6600, effect: "multishot" },
-      { name: "🛡 shield",    color: 0x4a90d9, effect: "shield" },
-      { name: "❤ vida",      color: 0xe74c3c, effect: "heal" },
-      { name: "🌀 blast",    color: 0xcc44ff, effect: "blast" },
-      { name: "⬆ speed",    color: 0x2ecc71, effect: "speed" },
+      { name: "Rapidfire",   color: 0xffdd00, effect: "rapidfire" },
+      { name: "Multishot",   color: 0xff6600, effect: "multishot" },
+      { name: "Escudo",      color: 0x4a90d9, effect: "shield" },
+      { name: "Vida",        color: 0xe74c3c, effect: "heal" },
+      { name: "Blast",       color: 0xcc44ff, effect: "blast" },
+      { name: "Velocidade",  color: 0x2ecc71, effect: "speed" },
     ];
 
     const { spawnBullet, spawnEnemy, spawnPickup, spawnParticles, tickParticles } = createSpawner({
@@ -474,6 +480,12 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
         ringMat2.color.setHex(auraCol);
         auraRing1.rotation.z += 0.06; auraRing2.rotation.z -= 0.04; auraRing2.rotation.y += 0.05;
         auraGlow.scale.setScalar(1 + pulse * 0.12);
+
+        // Magnet ring
+        const hasMagnet = (s.upgrades as string[]).includes("magnet");
+        const magnetPulse = Math.sin(frame * 0.07) * 0.5 + 0.5;
+        magnetRingMat.opacity += ((hasMagnet ? 0.25 + magnetPulse * 0.2 : 0) - magnetRingMat.opacity) * 0.08;
+        magnetRing.rotation.z += 0.015;
       }
 
       // Ultimate shockwave
@@ -625,6 +637,7 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
       }
 
       // Pickups
+      const hasMagnetUpgrade = (s.upgrades as string[]).includes("magnet");
       for (let pi = pickups.length - 1; pi >= 0; pi--) {
         const pk = pickups[pi];
         pk.mesh.rotation.y += 0.06;
@@ -632,8 +645,18 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
         pk.life--;
         const dx = pk.mesh.position.x - playerMesh.position.x;
         const dz = pk.mesh.position.z - playerMesh.position.z;
-        const pickupRange = (s.upgrades as string[]).includes("magnet") ? 4.84 : 1.21; // 2.2^2 or 1.1^2
-        if (dx * dx + dz * dz < pickupRange) {
+        const d2 = dx * dx + dz * dz;
+        const collectRange = hasMagnetUpgrade ? 4.84 : 1.21; // 2.2² or 1.1²
+
+        // Magnet: attract pickups within radius 6 toward player
+        if (hasMagnetUpgrade && d2 < 36 && d2 > collectRange) {
+          const d = Math.sqrt(d2);
+          const spd = 0.12 + (1 - d / 6) * 0.18; // faster when closer
+          pk.mesh.position.x -= (dx / d) * spd;
+          pk.mesh.position.z -= (dz / d) * spd;
+        }
+
+        if (d2 < collectRange) {
           storeRef.current.applyEffect(pk.effect as any); spawnParticles(pk.mesh.position.clone(), pk.color, 8);
           storeRef.current.setWaveMessage(pk.name + "!"); scene.remove(pk.mesh); pickups.splice(pi, 1); continue;
         }

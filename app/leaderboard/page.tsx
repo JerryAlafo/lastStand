@@ -128,7 +128,7 @@ export default function LeaderboardPage() {
                     {r.username}
                     {isMe && <span style={{ fontSize: 10, marginLeft: 6, color: "rgba(200,150,255,0.75)" }}>tu</span>}
                     {isMe && <LevelBadge username={r.username} />}
-                    {tab === "weekly" && r.rank === 1 && <span style={{ marginLeft: 6 }}>👑</span>}
+                    {tab === "weekly" && r.rank === 1 && <Crown size={13} color="#ffd700" style={{ marginLeft: 6, verticalAlign: "middle" }} />}
                   </Typography>
                 </Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>

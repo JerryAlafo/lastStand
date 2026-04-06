@@ -2,6 +2,7 @@
 
 import { MultiProps } from "@/lib/gameTypes";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { Trophy, Skull, DoorOpen } from "lucide-react";
 
 interface Props {
   pvpResult: "win" | "loss" | "abandoned";
@@ -37,8 +38,12 @@ export default function PvpResultModal({
           ? "0 0 60px rgba(46,204,113,0.25)"
           : "0 0 60px rgba(255,170,0,0.2)",
       }}>
-        <div style={{ fontSize: "clamp(48px, 12vw, 72px)", lineHeight: 1, marginBottom: 12 }}>
-          {pvpResult === "win" ? "🏆" : pvpResult === "abandoned" ? "🚪" : "💀"}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 12, color: pvpResult === "win" ? "#ffd700" : pvpResult === "abandoned" ? "rgba(255,255,255,0.5)" : "#e74c3c" }}>
+          {pvpResult === "win"
+            ? <Trophy size={64} style={{ filter: "drop-shadow(0 0 20px #ffd70066)" }} />
+            : pvpResult === "abandoned"
+            ? <DoorOpen size={64} />
+            : <Skull size={64} style={{ filter: "drop-shadow(0 0 20px #e74c3c66)" }} />}
         </div>
         <div style={{ fontSize: "clamp(22px, 6vw, 32px)", fontWeight: 900, color: "#fff", marginBottom: 8 }}>
           {pvpResult === "win" ? "Vitória!" : pvpResult === "abandoned" ? "Adversário saiu" : "Derrota"}

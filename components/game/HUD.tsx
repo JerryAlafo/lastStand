@@ -14,7 +14,11 @@ import {
   Play,
   LogOut,
   Settings,
+  Trophy,
+  Magnet,
+  CheckCircle2,
 } from "lucide-react";
+import { UPGRADE_POOL } from "@/lib/upgradeCards";
 import { MultiProps } from "@/lib/gameTypes";
 import VirtualControls from "./VirtualControls";
 import SettingsModal from "./SettingsModal";
@@ -173,6 +177,18 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
   // Account level + achievements
   const [levelInfo, setLevelInfo] = useState<{ level: number; title: string; color: string; xpProgress: number; xpNeeded: number } | null>(null);
   const [achievementToasts, setAchievementToasts] = useState<string[]>([]);
+  const [upgradeToast, setUpgradeToast] = useState<string | null>(null);
+  const upgradeToastTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  function handlePickUpgrade(id: string) {
+    applyUpgrade(id);
+    const card = UPGRADE_POOL.find(c => c.id === id);
+    if (card) {
+      setUpgradeToast(card.name);
+      clearTimeout(upgradeToastTimer.current);
+      upgradeToastTimer.current = setTimeout(() => setUpgradeToast(null), 2500);
+    }
+  }
 
   useEffect(() => {
     if (!session?.user?.username) return;
@@ -296,7 +312,22 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
 
       {/* ── Wave upgrade card picker ── */}
       {pendingUpgrade && !gameOver && (
-        <UpgradeModal wave={wave} upgrades={upgrades} onPick={applyUpgrade} />
+        <UpgradeModal wave={wave} upgrades={upgrades} onPick={handlePickUpgrade} />
+      )}
+
+      {/* ── Upgrade selected toast ── */}
+      {upgradeToast && (
+        <div style={{
+          position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)",
+          zIndex: 30, background: "rgba(123,47,247,0.18)", border: "1px solid rgba(123,47,247,0.5)",
+          borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 700,
+          color: "#aa55ff", fontFamily: "monospace", backdropFilter: "blur(8px)",
+          animation: "hpVignetteFade 2.5s ease-out forwards", pointerEvents: "none",
+          whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <CheckCircle2 size={14} color="#aa55ff" />
+          Upgrade: {upgradeToast}
+        </div>
       )}
 
       {/* ── Achievement toasts ── */}
@@ -309,7 +340,7 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
               color: "#ffd700", fontFamily: "monospace", backdropFilter: "blur(8px)",
               animation: "hpVignetteFade 5s ease-out forwards",
             }}>
-              🏆 Conquista: {name}
+              <Trophy size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} />Conquista: {name}
             </div>
           ))}
         </div>
@@ -458,18 +489,20 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
         </div>
       )}
 
-      {/* ── XP bar ── */}
-      <div style={{ position: "absolute", top: 50, left: 16, right: 16, height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 2 }}>
-        <div
-          style={{
-            height: "100%", borderRadius: 2,
-            background: "linear-gradient(90deg, #7b2ff7, #00c3ff)",
-            width: `${Math.min(100, (xp / xpNext) * 100).toFixed(0)}%`,
-            transition: "width 0.2s",
-            boxShadow: "0 0 6px #7b2ff788",
-          }}
-        />
-      </div>
+      {/* ── XP bar (only during active gameplay) ── */}
+      {running && !gameOver && (
+        <div style={{ position: "absolute", top: 50, left: 16, right: 16, height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 2 }}>
+          <div
+            style={{
+              height: "100%", borderRadius: 2,
+              background: "linear-gradient(90deg, #7b2ff7, #00c3ff)",
+              width: `${Math.min(100, (xp / xpNext) * 100).toFixed(0)}%`,
+              transition: "width 0.2s",
+              boxShadow: "0 0 6px #7b2ff788",
+            }}
+          />
+        </div>
+      )}
 
       {/* ── Active effects ── */}
       <div style={{ position: "absolute", top: 60, left: 16, display: "flex", gap: 5 }}>
@@ -487,6 +520,16 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
               {effectIcons[k]} {Math.ceil((v || 0) / 60)}s
             </div>
           ) : null,
+        )}
+        {(upgrades as string[]).includes("magnet") && (
+          <div style={{
+            background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
+            color: "#aa55ff", fontSize: 11, padding: "2px 8px", borderRadius: 4,
+            border: "0.5px solid rgba(123,47,247,0.4)", fontFamily: "monospace",
+            display: "flex", alignItems: "center", gap: 4,
+          }}>
+            <Magnet size={12} color="#aa55ff" /> Ímã
+          </div>
         )}
       </div>
 

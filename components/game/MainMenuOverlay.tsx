@@ -11,6 +11,9 @@ import {
   Settings,
   LogOut,
   User,
+  Shield,
+  Sword,
+  Wand2,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Session } from "next-auth";
@@ -223,11 +226,11 @@ export default function MainMenuOverlay({
             Classe de Personagem
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            {[
-              { id: "warrior",  icon: "🛡️", name: "Guerreiro",  desc: "+HP, lento",     req: 10, color: "#e74c3c" },
-              { id: "assassin", icon: "🗡️", name: "Assassino",  desc: "Veloz, -HP",     req: 20, color: "#aa00ff" },
-              { id: "mage",     icon: "🔮", name: "Mago",        desc: "2 balas, lento", req: 30, color: "#0088ff" },
-            ].map(cls => {
+            {([
+              { id: "warrior",  icon: <Shield size={18} />, name: "Guerreiro",  desc: "+HP, lento",     req: 10, color: "#e74c3c" },
+              { id: "assassin", icon: <Sword  size={18} />, name: "Assassino",  desc: "Veloz, -HP",     req: 20, color: "#aa00ff" },
+              { id: "mage",     icon: <Wand2  size={18} />, name: "Mago",        desc: "2 balas, lento", req: 30, color: "#0088ff" },
+            ] as { id: string; icon: React.ReactNode; name: string; desc: string; req: number; color: string }[]).map(cls => {
               const locked    = levelInfo.level < cls.req;
               const selected  = levelInfo.selectedClass === cls.id;
               return (
@@ -240,7 +243,7 @@ export default function MainMenuOverlay({
                     fontFamily: "inherit", textAlign: "center", transition: "all 0.2s",
                     opacity: locked ? 0.5 : 1,
                   }}>
-                  <div style={{ fontSize: 18, marginBottom: 2 }}>{cls.icon}</div>
+                  <div style={{ display: "flex", justifyContent: "center", marginBottom: 2 }}>{cls.icon}</div>
                   <div style={{ fontSize: 11, fontWeight: 700 }}>{cls.name}</div>
                   <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{locked ? `Nv.${cls.req}` : cls.desc}</div>
                 </button>

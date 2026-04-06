@@ -2,6 +2,25 @@
 
 import { useMemo } from "react";
 import { UpgradeCard, pickUpgradeOptions, RARITY_COLORS, RARITY_BORDER } from "@/lib/upgradeCards";
+import {
+  Flame, Heart, Zap, Crosshair, Wind, ShieldCheck,
+  RefreshCw, Star, Magnet, Swords, RotateCw, Target,
+} from "lucide-react";
+
+const UPGRADE_ICONS: Record<string, React.ReactNode> = {
+  fire_bullets:  <Flame       size={36} />,
+  regen:         <Heart       size={36} />,
+  damage_aura:   <Zap         size={36} />,
+  triple_shot:   <Target      size={36} />,
+  speed_boost:   <Wind        size={36} />,
+  extra_hp:      <Heart       size={36} />,
+  fast_reload:   <RefreshCw   size={36} />,
+  piercing:      <Crosshair   size={36} />,
+  magnet:        <Magnet      size={36} />,
+  double_xp:     <Star        size={36} />,
+  blast_charge:  <RotateCw    size={36} />,
+  shield_start:  <ShieldCheck size={36} />,
+};
 
 interface Props {
   wave: number;
@@ -54,7 +73,7 @@ export default function UpgradeModal({ wave, upgrades, onPick }: Props) {
               (e.currentTarget as HTMLButtonElement).style.boxShadow = "";
             }}
           >
-            <div style={{ fontSize: "clamp(32px,8vw,44px)", marginBottom: 10 }}>{card.icon}</div>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>{UPGRADE_ICONS[card.id]}</div>
             <div style={{ fontSize: "clamp(13px,3vw,16px)", fontWeight: 800, color: "#fff", marginBottom: 6 }}>{card.name}</div>
             <div style={{ fontSize: "clamp(11px,2.5vw,13px)", color: "rgba(255,255,255,0.6)", lineHeight: 1.4, marginBottom: 12 }}>{card.desc}</div>
             <div style={{
