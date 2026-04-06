@@ -39,8 +39,7 @@ export async function GET() {
   }
 
   const top = Array.from(map.values())
-    .sort((a, b) => b.score - a.score || a.username.localeCompare(b.username))
-    .slice(0, 10);
+    .sort((a, b) => b.score - a.score || a.username.localeCompare(b.username));
 
   return NextResponse.json({ scores: top });
 }

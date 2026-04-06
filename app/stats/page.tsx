@@ -25,12 +25,18 @@ interface PlayerStat {
   bestScore: number;
   totalKills: number;
   gamesPlayed: number;
+  level?: number;
+  title?: string;
+  color?: string;
 }
 
 interface PvpStat {
   username: string;
   pvpWins: number;
   pvpGamesPlayed: number;
+  level?: number;
+  title?: string;
+  color?: string;
 }
 
 interface StatsData {
@@ -666,20 +672,25 @@ export default function StatsPage() {
                           >
                             {realRank + 1}
                           </Typography>
-                          <Typography
-                            sx={{
-                              width: isMobile ? 80 : 120,
-                              fontSize: isMobile ? 13 : 14,
-                              fontWeight: 600,
-                              color: "#fff",
-                              flexShrink: 0,
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {p.username}
-                          </Typography>
+                          <Box sx={{ width: isMobile ? 80 : 120, flexShrink: 0, minWidth: 0 }}>
+                            <Typography
+                              sx={{
+                                fontSize: isMobile ? 13 : 14,
+                                fontWeight: 600,
+                                color: "#fff",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {p.username}
+                            </Typography>
+                            {p.title && (
+                              <Typography sx={{ fontSize: 9, fontWeight: 700, color: p.color ?? "#888", lineHeight: 1.2, letterSpacing: 0.5 }}>
+                                {p.title}
+                              </Typography>
+                            )}
+                          </Box>
                           <Box
                             sx={{
                               flex: 1,
@@ -804,20 +815,25 @@ export default function StatsPage() {
                         >
                           {realRank + 1}
                         </Typography>
-                        <Typography
-                          sx={{
-                            width: isMobile ? 80 : 120,
-                            fontSize: isMobile ? 13 : 14,
-                            fontWeight: 600,
-                            color: "#fff",
-                            flexShrink: 0,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {p.username}
-                        </Typography>
+                        <Box sx={{ width: isMobile ? 80 : 120, flexShrink: 0, minWidth: 0 }}>
+                          <Typography
+                            sx={{
+                              fontSize: isMobile ? 13 : 14,
+                              fontWeight: 600,
+                              color: "#fff",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {p.username}
+                          </Typography>
+                          {p.title && (
+                            <Typography sx={{ fontSize: 9, fontWeight: 700, color: p.color ?? "#888", lineHeight: 1.2, letterSpacing: 0.5 }}>
+                              {p.title}
+                            </Typography>
+                          )}
+                        </Box>
                         <Box
                           sx={{
                             flex: 1,
@@ -921,7 +937,7 @@ export default function StatsPage() {
                 color: "rgba(255,255,255,0.18)",
               }}
             >
-              Dados em tempo real · Last Stand Arena
+              Todos os jogadores · Last Stand Arena
             </Typography>
           </>
         )}

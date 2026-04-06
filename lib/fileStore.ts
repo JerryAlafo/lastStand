@@ -16,9 +16,13 @@ const GITHUB_BRANCH = process.env.GITHUB_BRANCH ?? "main";
 const USE_GITHUB = Boolean(GITHUB_TOKEN && GITHUB_REPO);
 
 const DATA_FILES = {
-  users:   "data/users.txt",
-  scores:  "data/scores.txt",
-  pvpWins: "data/pvp_wins.txt",
+  users:        "data/users.txt",
+  scores:       "data/scores.txt",
+  pvpWins:      "data/pvp_wins.txt",
+  levels:       "data/levels.txt",
+  achievements: "data/achievements.txt",
+  weekly:       "data/weekly_scores.txt",
+  missions:     "data/missions.txt",
 } as const;
 
 // ── Write-lock queue (serialises concurrent writes per file) ─────────────────
@@ -197,8 +201,77 @@ export async function readUsersLines():           Promise<string[]> { return rea
 export async function appendUserLine(l: string):  Promise<void>     { return appendLine(DATA_FILES.users, l);  }
 export async function readScoresLines():          Promise<string[]> { return readLines(DATA_FILES.scores);      }
 export async function appendScoreLine(l: string): Promise<void>     { return appendLine(DATA_FILES.scores, l); }
-export async function readPvpWinsLines():         Promise<string[]> { return readLines(DATA_FILES.pvpWins);     }
-export async function appendPvpWinLine(l: string):Promise<void>     { return appendLine(DATA_FILES.pvpWins, l);}
+export async function readPvpWinsLines():          Promise<string[]> { return readLines(DATA_FILES.pvpWins);     }
+export async function appendPvpWinLine(l: string): Promise<void>     { return appendLine(DATA_FILES.pvpWins, l); }
+
+// ── Levels ─────────────────────────────────────────────────────────────────────
+// Format: username|totalXp|level|selectedClass
+export async function readLevelsLines():           Promise<string[]> { return readLines(DATA_FILES.levels);      }
+export async function appendLevelLine(l: string):  Promise<void>     { return appendLine(DATA_FILES.levels, l);  }
+export async function writeLevelsContent(c: string): Promise<void>   { return writeFile(DATA_FILES.levels, c);   }
+
+export interface UserLevel { username: string; totalXp: number; level: number; selectedClass: string | null }
+
+export async function getUserLevel(username: string): Promise<UserLevel | null> {
+  const lines = await readLevelsLines();
+  for (const l of lines) {
+    const [u, xpS, lvS, cls] = l.split("|");
+    if (u === username) return { username: u, totalXp: Number(xpS) || 0, level: Number(lvS) || 1, selectedClass: cls || null };
+  }
+  return null;
+}
+
+export async function upsertUserLevel(ul: UserLevel): Promise<void> {
+  await withWriteLock(DATA_FILES.levels + ":upsert", async () => {
+    const lines = await readLevelsLines();
+    const idx = lines.findIndex(l => l.split("|")[0] === ul.username);
+    const line = `${ul.username}|${ul.totalXp}|${ul.level}|${ul.selectedClass ?? ""}`;
+    if (idx >= 0) lines[idx] = line; else lines.push(line);
+    await writeLevelsContent(lines.join("\n") + "\n");
+  });
+}
+
+// ── Achievements ────────────────────────────────────────────────────────────────
+// Format: username|achievementId|timestamp
+export async function readAchievementsLines():          Promise<string[]> { return readLines(DATA_FILES.achievements);      }
+export async function appendAchievementLine(l: string): Promise<void>     { return appendLine(DATA_FILES.achievements, l);  }
+
+export async function getUserAchievements(username: string): Promise<string[]> {
+  const lines = await readAchievementsLines();
+  return lines.filter(l => l.split("|")[0] === username).map(l => l.split("|")[1]).filter(Boolean);
+}
+
+// ── Weekly scores ───────────────────────────────────────────────────────────────
+// Format: username|score|wave|kills|weekId|timestamp
+export async function readWeeklyLines():          Promise<string[]> { return readLines(DATA_FILES.weekly);   }
+export async function appendWeeklyLine(l: string): Promise<void>    { return appendLine(DATA_FILES.weekly, l); }
+
+// ── Missions ────────────────────────────────────────────────────────────────────
+// Format: username|date|missionId|progress
+export async function readMissionsLines():          Promise<string[]> { return readLines(DATA_FILES.missions);   }
+export async function appendMissionLine(l: string): Promise<void>    { return appendLine(DATA_FILES.missions, l); }
+export async function writeMissionsContent(c: string): Promise<void> { return writeFile(DATA_FILES.missions, c); }
+
+export async function getMissionProgress(username: string, date: string): Promise<Record<string, number>> {
+  const lines = await readMissionsLines();
+  const result: Record<string, number> = {};
+  for (const l of lines) {
+    const [u, d, mid, progS] = l.split("|");
+    if (u === username && d === date) result[mid] = Number(progS) || 0;
+  }
+  return result;
+}
+
+export async function upsertMissionProgress(username: string, date: string, missionId: string, progress: number): Promise<void> {
+  await withWriteLock(DATA_FILES.missions + ":upsert", async () => {
+    const lines = await readMissionsLines();
+    const key = `${username}|${date}|${missionId}`;
+    const idx = lines.findIndex(l => l.startsWith(key + "|"));
+    const line = `${key}|${progress}`;
+    if (idx >= 0) lines[idx] = line; else lines.push(line);
+    await writeMissionsContent(lines.join("\n") + "\n");
+  });
+}
 
 export function getUsersPath()  { return path.join(dataDir, "users.txt");  }
 export function getScoresPath() { return path.join(dataDir, "scores.txt"); }

@@ -15,7 +15,6 @@ import {
   LogOut,
   Settings,
 } from "lucide-react";
-import { signOut } from "next-auth/react";
 import { MultiProps } from "@/lib/gameTypes";
 import VirtualControls from "./VirtualControls";
 import SettingsModal from "./SettingsModal";
@@ -25,6 +24,10 @@ import PvpResultModal from "./PvpResultModal";
 import TopBar from "./TopBar";
 import UltimateButton from "./UltimateButton";
 import PauseModal from "./PauseModal";
+import UpgradeModal from "./UpgradeModal";
+import DailyMissionsPanel from "./DailyMissionsPanel";
+import { ACHIEVEMENTS } from "@/lib/levelSystem";
+import { getLevelTitle, getLevelColor } from "@/lib/levelSystem";
 
 // Lerp between two RGBA arrays based on t (0=night, 1=day)
 function lerpRgba(night: number[], day: number[], t: number): string {
@@ -41,20 +44,10 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
   const username = session?.user?.username ?? "";
   const initials = username ? username.slice(0, 2).toUpperCase() : "??";
   const {
-    hp,
-    maxHp,
-    score,
-    kills,
-    wave,
-    xp,
-    xpNext,
-    activeEffects,
-    running,
-    gameOver,
-    waveMessage,
-    setRunning,
-    reset,
-    setWaveMessage,
+    hp, maxHp, score, kills, wave, xp, xpNext,
+    activeEffects, running, gameOver, waveMessage,
+    setRunning, reset, setWaveMessage,
+    upgrades, pendingUpgrade, applyUpgrade, selectedClass, setClass, blastCount,
   } = useGameStore();
 
   // Track if game has ever been started (to distinguish pause from main menu)
@@ -177,6 +170,28 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
   const savedRef = useRef(false);
   const [best, setBest] = useState<number | null>(null);
 
+  // Account level + achievements
+  const [levelInfo, setLevelInfo] = useState<{ level: number; title: string; color: string; xpProgress: number; xpNeeded: number } | null>(null);
+  const [achievementToasts, setAchievementToasts] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!session?.user?.username) return;
+    fetch("/api/user/level")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setLevelInfo({ level: d.level, title: getLevelTitle(d.level), color: getLevelColor(d.level), xpProgress: d.xpProgress, xpNeeded: d.xpNeeded }); })
+      .catch(() => undefined);
+  }, [session?.user?.username, gameOver]);
+
+  // Apply saved class from server on load
+  useEffect(() => {
+    if (!session?.user?.username || selectedClass) return;
+    fetch("/api/user/level")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.selectedClass) setClass(d.selectedClass as Parameters<typeof setClass>[0]); })
+      .catch(() => undefined);
+  // eslint-disable-next-line
+  }, [session?.user?.username]);
+
   useEffect(() => {
     if (!session?.user?.username) return;
     (async () => {
@@ -195,8 +210,17 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
     fetch("/api/scores/save", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ score, wave, kills }),
-    }).catch(() => undefined);
+      body: JSON.stringify({ score, wave, kills, blastCount }),
+    }).then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return;
+        if (d.newAchievements?.length > 0) {
+          const names = d.newAchievements.map((id: string) => ACHIEVEMENTS.find(a => a.id === id)?.name ?? id).filter(Boolean);
+          setAchievementToasts(names);
+          setTimeout(() => setAchievementToasts([]), 5000);
+        }
+      })
+      .catch(() => undefined);
   }, [gameOver, session?.user?.username, score, wave, kills]);
 
   const effectIcons: Record<string, JSX.Element> = {
@@ -267,6 +291,27 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
           }}>
             PVP — Preparar…
           </div>
+        </div>
+      )}
+
+      {/* ── Wave upgrade card picker ── */}
+      {pendingUpgrade && !gameOver && (
+        <UpgradeModal wave={wave} upgrades={upgrades} onPick={applyUpgrade} />
+      )}
+
+      {/* ── Achievement toasts ── */}
+      {achievementToasts.length > 0 && (
+        <div style={{ position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)", zIndex: 30, display: "flex", flexDirection: "column", gap: 8, alignItems: "center", pointerEvents: "none" }}>
+          {achievementToasts.map((name, i) => (
+            <div key={i} style={{
+              background: "rgba(255,180,0,0.15)", border: "1px solid rgba(255,180,0,0.4)",
+              borderRadius: 10, padding: "8px 18px", fontSize: 13, fontWeight: 700,
+              color: "#ffd700", fontFamily: "monospace", backdropFilter: "blur(8px)",
+              animation: "hpVignetteFade 5s ease-out forwards",
+            }}>
+              🏆 Conquista: {name}
+            </div>
+          ))}
         </div>
       )}
 
@@ -461,6 +506,25 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
       {/* ── Ultimate ability button (desktop only) ── */}
       <UltimateButton ultCharge={ultCharge} ultReady={ultReady} ultActive={ultActive} isMobile={isMobile} />
 
+      {/* ── Daily missions panel (shown during active gameplay) ── */}
+      {running && !gameOver && !isMobile && <DailyMissionsPanel />}
+
+      {/* ── Level badge (bottom-left, during gameplay) ── */}
+      {running && !gameOver && levelInfo && !isMobile && (
+        <div style={{
+          position: "absolute", bottom: 40, left: 16, fontFamily: "monospace",
+          background: "rgba(10,5,25,0.8)", border: `1px solid ${levelInfo.color}44`,
+          borderRadius: 10, padding: "6px 12px", backdropFilter: "blur(8px)",
+        }}>
+          <div style={{ fontSize: 10, color: levelInfo.color, fontWeight: 700, letterSpacing: 1 }}>
+            Nv.{levelInfo.level} · {levelInfo.title}
+          </div>
+          <div style={{ height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 2, marginTop: 3, width: 100 }}>
+            <div style={{ height: "100%", borderRadius: 2, background: levelInfo.color, width: `${Math.min(100, (levelInfo.xpProgress / levelInfo.xpNeeded) * 100)}%`, transition: "width 0.3s" }} />
+          </div>
+        </div>
+      )}
+
       {/* ── Settings modal ── */}
       <SettingsModal
         open={showSettings}
@@ -521,6 +585,11 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
           onSettings={() => setShowSettings(true)}
           router={router}
           multiProps={multiProps}
+          levelInfo={levelInfo ? { ...levelInfo, selectedClass: selectedClass } : null}
+          onClassChange={async (cls) => {
+            const res = await fetch("/api/user/level", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ selectedClass: cls }) });
+            if (res.ok) { setClass(cls as Parameters<typeof setClass>[0]); setLevelInfo(li => li ? { ...li, selectedClass: cls } : li); }
+          }}
         />
       )}
 

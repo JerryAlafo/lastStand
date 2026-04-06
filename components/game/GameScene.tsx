@@ -159,13 +159,15 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
       enemies.splice(idx, 1);
       const s = storeRef.current;
       s.addKill(); s.addScore(10 * s.wave); s.addXp(); s.enemyDied();
-      ultKills = Math.min(ULT_NEEDED, ultKills + 1);
+      const blastBonus = (s.upgrades as string[]).includes("blast_charge") ? 2 : 1;
+      ultKills = Math.min(ULT_NEEDED, ultKills + blastBonus);
       if (Math.random() < 0.22) spawnPickup(e.mesh.position.x, e.mesh.position.z);
     }
 
     function activateUlt() {
       if (ultKills < ULT_NEEDED || ultActive || !storeRef.current.running) return;
       ultKills = 0; ultActive = true; ultTimer = 180;
+      storeRef.current.addBlast();
       for (let ei = enemies.length - 1; ei >= 0; ei--) {
         enemies[ei].hp -= 25;
         if (enemies[ei].hp <= 0) killEnemy(ei);
@@ -520,6 +522,24 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
         }
       }
 
+      // ── Upgrade: damage aura ─────────────────────────────────────────────────
+      {
+        const upgrades = s.upgrades as string[];
+        const auraCount = upgrades.filter((u: string) => u === "damage_aura").length;
+        if (auraCount > 0 && frame % 20 === 0) {
+          for (let ei = enemies.length - 1; ei >= 0; ei--) {
+            const en = enemies[ei];
+            const dx = en.mesh.position.x - playerMesh.position.x;
+            const dz = en.mesh.position.z - playerMesh.position.z;
+            if (dx * dx + dz * dz < 4.0) {
+              en.hp -= auraCount;
+              en.hitTimer = 8;
+              if (en.hp <= 0) killEnemy(ei);
+            }
+          }
+        }
+      }
+
       // Bullets
       for (let bi = bullets.length - 1; bi >= 0; bi--) {
         const b = bullets[bi];
@@ -538,15 +558,18 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
               if (ddx * ddx + ddz * ddz < 0.5625) { pendingEnemyHitsBuffer.push({ id: eid, damage: 1 }); spawnParticles(b.mesh.position.clone(), re.col, 4); hit = true; break; }
             }
           } else {
+            const piercing = (s.upgrades as string[]).includes("piercing");
+            const dmg = s.bulletDamage ?? 1;
             for (let ei = enemies.length - 1; ei >= 0; ei--) {
               const en = enemies[ei];
               const dx = b.mesh.position.x - en.mesh.position.x;
               const dz = b.mesh.position.z - en.mesh.position.z;
               if (dx * dx + dz * dz < 0.5625) {
-                en.hp--; en.hitTimer = 7;
+                en.hp -= dmg; en.hitTimer = 7;
                 const ratio = Math.max(0, en.hp / en.maxHp);
                 en.hpFg.scale.x = ratio; en.hpFg.position.x = -(0.9 * (1 - ratio)) / 2;
-                if (en.hp <= 0) killEnemy(ei); hit = true; break;
+                if (en.hp <= 0) killEnemy(ei);
+                if (!piercing) { hit = true; break; }
               }
             }
           }
@@ -609,7 +632,8 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
         pk.life--;
         const dx = pk.mesh.position.x - playerMesh.position.x;
         const dz = pk.mesh.position.z - playerMesh.position.z;
-        if (dx * dx + dz * dz < 1.21) {
+        const pickupRange = (s.upgrades as string[]).includes("magnet") ? 4.84 : 1.21; // 2.2^2 or 1.1^2
+        if (dx * dx + dz * dz < pickupRange) {
           storeRef.current.applyEffect(pk.effect as any); spawnParticles(pk.mesh.position.clone(), pk.color, 8);
           storeRef.current.setWaveMessage(pk.name + "!"); scene.remove(pk.mesh); pickups.splice(pi, 1); continue;
         }

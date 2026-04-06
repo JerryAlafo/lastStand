@@ -10,21 +10,19 @@ import {
   Heart,
   Settings,
   LogOut,
+  User,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { Session } from "next-auth";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { MultiProps } from "@/lib/gameTypes";
 
+interface LevelInfo { level: number; title: string; color: string; xpProgress: number; xpNeeded: number; selectedClass: string | null }
+
 export default function MainMenuOverlay({
-  session,
-  isMobile,
-  kills,
-  best,
-  score,
-  onStart,
-  onSettings,
-  router,
+  session, isMobile, kills, best, score,
+  onStart, onSettings, router,
+  levelInfo, onClassChange,
 }: {
   session: Session | null;
   isMobile: boolean;
@@ -37,6 +35,8 @@ export default function MainMenuOverlay({
   onSignOut?: () => void;
   router: AppRouterInstance;
   multiProps?: MultiProps;
+  levelInfo?: LevelInfo | null;
+  onClassChange?: (cls: string) => void;
 }) {
   return (
     <div
@@ -123,6 +123,22 @@ export default function MainMenuOverlay({
       >
         por Jerry Alafo
       </div>
+
+      {/* Level + XP bar */}
+      {levelInfo && (
+        <div style={{ marginBottom: 16, position: "relative", zIndex: 1, textAlign: "center" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: levelInfo.color, fontFamily: "monospace", letterSpacing: 1 }}>
+            Nv.{levelInfo.level} · {levelInfo.title}
+          </span>
+          <div style={{ width: 160, height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2, margin: "6px auto 0" }}>
+            <div style={{ height: "100%", borderRadius: 2, background: levelInfo.color, width: `${Math.min(100, (levelInfo.xpProgress / levelInfo.xpNeeded) * 100)}%`, transition: "width 0.4s" }} />
+          </div>
+          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "monospace" }}>
+            {levelInfo.xpProgress}/{levelInfo.xpNeeded} XP
+          </span>
+        </div>
+      )}
+
       <div
         style={{
           color: "rgba(255,255,255,0.45)",
@@ -199,6 +215,40 @@ export default function MainMenuOverlay({
       >
         ENTRAR NA ARENA
       </Button>
+
+      {/* Class selection (unlocked at level 10) */}
+      {levelInfo && levelInfo.level >= 10 && onClassChange && (
+        <div style={{ marginTop: 16, marginBottom: 4, position: "relative", zIndex: 1, width: "100%", maxWidth: 380 }}>
+          <div style={{ fontSize: 10, letterSpacing: 2, color: "rgba(200,150,255,0.6)", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 8, textAlign: "center" }}>
+            Classe de Personagem
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {[
+              { id: "warrior",  icon: "🛡️", name: "Guerreiro",  desc: "+HP, lento",     req: 10, color: "#e74c3c" },
+              { id: "assassin", icon: "🗡️", name: "Assassino",  desc: "Veloz, -HP",     req: 20, color: "#aa00ff" },
+              { id: "mage",     icon: "🔮", name: "Mago",        desc: "2 balas, lento", req: 30, color: "#0088ff" },
+            ].map(cls => {
+              const locked    = levelInfo.level < cls.req;
+              const selected  = levelInfo.selectedClass === cls.id;
+              return (
+                <button key={cls.id} onClick={() => !locked && onClassChange(cls.id)} disabled={locked}
+                  style={{
+                    flex: 1, padding: "8px 4px", borderRadius: 10, cursor: locked ? "not-allowed" : "pointer",
+                    background: selected ? `${cls.color}22` : "rgba(255,255,255,0.04)",
+                    border: `1px solid ${selected ? cls.color : locked ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.12)"}`,
+                    color: locked ? "rgba(255,255,255,0.25)" : selected ? cls.color : "rgba(255,255,255,0.7)",
+                    fontFamily: "inherit", textAlign: "center", transition: "all 0.2s",
+                    opacity: locked ? 0.5 : 1,
+                  }}>
+                  <div style={{ fontSize: 18, marginBottom: 2 }}>{cls.icon}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700 }}>{cls.name}</div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{locked ? `Nv.${cls.req}` : cls.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Nav links */}
       <div
@@ -305,6 +355,35 @@ export default function MainMenuOverlay({
           }}
         >
           <Trophy size={13} /> Leaderboard
+        </button>
+        <button
+          onClick={() => router.push("/profile")}
+          style={{
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid rgba(170,85,255,0.2)",
+            background: "rgba(123,47,247,0.06)",
+            color: "rgba(170,85,255,0.7)",
+            fontSize: 12,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            fontFamily: "inherit",
+            backdropFilter: "blur(8px)",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(123,47,247,0.14)";
+            (e.currentTarget as HTMLButtonElement).style.color = "#aa55ff";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(123,47,247,0.06)";
+            (e.currentTarget as HTMLButtonElement).style.color = "rgba(170,85,255,0.7)";
+          }}
+        >
+          <User size={13} /> Perfil
         </button>
         <button
           onClick={() => router.push("/donate")}

@@ -1,12 +1,22 @@
 import { NextResponse } from "next/server";
-import { readUsersLines, readScoresLines, readPvpWinsLines } from "@/lib/fileStore";
+import { readUsersLines, readScoresLines, readPvpWinsLines, readLevelsLines } from "@/lib/fileStore";
+import { getLevelTitle, getLevelColor } from "@/lib/levelSystem";
 
 export async function GET() {
-  const [userLines, scoreLines, pvpLines] = await Promise.all([
+  const [userLines, scoreLines, pvpLines, levelLines] = await Promise.all([
     readUsersLines(),
     readScoresLines(),
     readPvpWinsLines(),
+    readLevelsLines(),
   ]);
+
+  // Build level map: username → { level, title, color }
+  const levelMap = new Map<string, { level: number; title: string; color: string }>();
+  for (const line of levelLines) {
+    const [u, , lvS] = line.split("|");
+    const lv = Number(lvS) || 1;
+    if (u) levelMap.set(u, { level: lv, title: getLevelTitle(lv), color: getLevelColor(lv) });
+  }
 
   const totalUsers = userLines.length;
 
@@ -30,9 +40,11 @@ export async function GET() {
   }
 
   const topSolo = Array.from(soloMap.entries())
-    .map(([username, s]) => ({ username, ...s }))
-    .sort((a, b) => b.bestScore - a.bestScore || a.username.localeCompare(b.username))
-    .slice(0, 10);
+    .map(([username, s]) => {
+      const lv = levelMap.get(username) ?? { level: 1, title: getLevelTitle(1), color: getLevelColor(1) };
+      return { username, ...s, ...lv };
+    })
+    .sort((a, b) => b.bestScore - a.bestScore || a.username.localeCompare(b.username));
 
   // ── PVP stats ───────────────────────────────────────────────────────────────
   const pvpMap = new Map<string, number>(); // username → win count
@@ -54,13 +66,11 @@ export async function GET() {
   }
 
   const topPvp = Array.from(pvpMap.entries())
-    .map(([username, pvpWins]) => ({
-      username,
-      pvpWins,
-      pvpGamesPlayed: pvpGamesMap.get(username) ?? 0,
-    }))
-    .sort((a, b) => b.pvpWins - a.pvpWins || a.username.localeCompare(b.username))
-    .slice(0, 10);
+    .map(([username, pvpWins]) => {
+      const lv = levelMap.get(username) ?? { level: 1, title: getLevelTitle(1), color: getLevelColor(1) };
+      return { username, pvpWins, pvpGamesPlayed: pvpGamesMap.get(username) ?? 0, ...lv };
+    })
+    .sort((a, b) => b.pvpWins - a.pvpWins || a.username.localeCompare(b.username));
 
   const soloChampion  = topSolo[0] ?? null;
   const pvpChampion   = topPvp.find(p => p.pvpWins > 0) ?? null;
