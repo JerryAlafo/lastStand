@@ -16,27 +16,31 @@ import {
   Wand2,
   Bell,
   BellOff,
+  Target,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Session } from "next-auth";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { MultiProps } from "@/lib/gameTypes";
+import { MAPS, getDifficultyColor, getDifficultyLabel } from "@/lib/maps";
+import { MapPin } from "lucide-react";
 
 interface LevelInfo { level: number; title: string; color: string; xpProgress: number; xpNeeded: number; selectedClass: string | null }
 
 export default function MainMenuOverlay({
   session, isMobile, kills, best, score,
   onStart, onSettings, router,
-  levelInfo, onClassChange,
+  selectedMap, levelInfo, onClassChange,
 }: {
   session: Session | null;
   isMobile: boolean;
   dayTime?: number;
+  selectedMap?: string;
   kills: number;
   best: number | null;
   score: number;
-  onStart: () => void;
+  onStart: (mapId: string) => void;
   onSettings: () => void;
   onSignOut?: () => void;
   router: AppRouterInstance;
@@ -44,39 +48,76 @@ export default function MainMenuOverlay({
   levelInfo?: LevelInfo | null;
   onClassChange?: (cls: string) => void;
 }) {
-  const [pushState, setPushState] = useState<"unknown" | "subscribed" | "denied" | "unsupported" | "idle">("unknown");
+  const [pushState, setPushState] = useState<"unknown" | "subscribed" | "denied" | "unsupported" | "idle">("idle");
   const [pushLoading, setPushLoading] = useState(false);
+  const [showMaps, setShowMaps] = useState(false);
+  const mapId = selectedMap ?? "arena";
+  const subscribedRef = useRef(false);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       setPushState("unsupported"); return;
     }
     if (Notification.permission === "denied") { setPushState("denied"); return; }
-    fetch("/api/push/subscribe").then(r => r.json()).then((d: { subscribed?: boolean }) => {
-      setPushState(d.subscribed ? "subscribed" : "idle");
-    }).catch(() => setPushState("idle"));
+
+    (async () => {
+      try {
+        const res = await fetch("/api/push/subscribe");
+        const d = await res.json() as { subscribed?: boolean; publicKey?: string };
+
+        if (d.subscribed) {
+          setPushState("subscribed");
+          subscribedRef.current = true;
+          return;
+        }
+
+        if (Notification.permission === "granted" && d.publicKey) {
+          const reg = await navigator.serviceWorker.register("/sw.js");
+          await navigator.serviceWorker.ready;
+          let sub = await reg.pushManager.getSubscription();
+          if (!sub) {
+            sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(d.publicKey) });
+          }
+          await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subscription: sub.toJSON() }) });
+          setPushState("subscribed");
+          subscribedRef.current = true;
+        } else {
+          setPushState("idle");
+        }
+      } catch {
+        setPushState("idle");
+      }
+    })();
   }, []);
+
+  const pushActive = pushState === "subscribed";
+  const pushReady = pushActive || Notification.permission === "granted";
 
   async function togglePush() {
     if (pushLoading || pushState === "unsupported" || pushState === "denied") return;
     setPushLoading(true);
     try {
-      if (pushState === "subscribed") {
-        await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ unsubscribe: true }) });
-        const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.getSubscription();
-        await sub?.unsubscribe();
-        setPushState("idle");
-      } else {
+      if (pushState === "idle") {
         const perm = await Notification.requestPermission();
         if (perm !== "granted") { setPushState("denied"); return; }
         const pubKeyRes = await fetch("/api/push/subscribe");
         const { publicKey } = await pubKeyRes.json() as { publicKey: string };
         const reg = await navigator.serviceWorker.register("/sw.js");
         await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+          sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
+        }
         await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subscription: sub.toJSON() }) });
+        subscribedRef.current = true;
         setPushState("subscribed");
+      } else {
+        await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ unsubscribe: true }) });
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        await sub?.unsubscribe();
+        subscribedRef.current = false;
+        setPushState("idle");
       }
     } catch { /* silent */ }
     finally { setPushLoading(false); }
@@ -233,32 +274,63 @@ export default function MainMenuOverlay({
           </>
         )}
       </div>
-      <Button
-        onClick={onStart}
-        variant="contained"
-        startIcon={<Swords size={18} />}
-        sx={{
-          background: "linear-gradient(135deg, #c0392b, #e74c3c)",
-          color: "#fff",
-          fontSize: 16,
-          fontWeight: 800,
-          letterSpacing: 2,
-          fontFamily: "monospace",
-          px: 7,
-          py: 2,
-          borderRadius: 2,
-          textTransform: "none",
-          boxShadow: "0 0 32px rgba(231,76,60,0.55)",
-          position: "relative",
-          zIndex: 1,
-          "&:hover": {
-            background: "linear-gradient(135deg, #a93226, #c0392b)",
-            boxShadow: "0 0 44px rgba(231,76,60,0.75)",
-          },
-        }}
-      >
-        ENTRAR NA ARENA
-      </Button>
+
+      {/* Map selection */}
+      <div style={{ marginTop: 16, marginBottom: 4, position: "relative", zIndex: 1, width: "100%", maxWidth: 380, padding: "0 4px" }}>
+        <button onClick={() => setShowMaps(!showMaps)}
+          style={{ width: "100%", padding: "10px 14px", borderRadius: 12, cursor: "pointer", background: showMaps ? "rgba(123,47,247,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${showMaps ? "rgba(123,47,247,0.5)" : "rgba(255,255,255,0.1)"}`, color: showMaps ? "#aa55ff" : "rgba(255,255,255,0.6)", fontFamily: "monospace", fontSize: 14, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.2s" }}>
+          <MapPin size={13} /> {MAPS.find(m => m.id === mapId)?.namePt ?? "Arena Clássica"}
+        </button>
+
+        {showMaps && (
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+            {MAPS.map(map => {
+              const isActive = mapId === map.id;
+              return (
+                <button key={map.id} onClick={() => { onStart(map.id); }}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, cursor: "pointer", background: isActive ? `${map.accentColor}18` : "rgba(255,255,255,0.03)", border: `1px solid ${isActive ? map.accentColor : "rgba(255,255,255,0.08)"}`, color: isActive ? map.accentColor : "rgba(255,255,255,0.6)", fontFamily: "inherit", textAlign: "left", transition: "all 0.2s" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <MapPin size={14} color={map.accentColor} />
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{map.namePt}</span>
+                    <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 5, background: `${getDifficultyColor(map.difficulty)}22`, border: `1px solid ${getDifficultyColor(map.difficulty)}44`, color: getDifficultyColor(map.difficulty), fontWeight: 700, marginLeft: "auto" }}>
+                      {getDifficultyLabel(map.difficulty)}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 3, marginLeft: 22 }}>{map.descPt}</div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 380, padding: "0 4px" }}>
+        <Button
+          onClick={() => onStart(mapId)}
+          variant="contained"
+          startIcon={<Swords size={18} />}
+          sx={{
+            width: "100%",
+            background: "linear-gradient(135deg, #c0392b, #e74c3c)",
+            color: "#fff",
+            fontSize: 16,
+            fontWeight: 800,
+            letterSpacing: 2,
+            fontFamily: "monospace",
+            px: 7,
+            py: 2,
+            borderRadius: 2,
+            textTransform: "none",
+            boxShadow: "0 0 32px rgba(231,76,60,0.55)",
+            "&:hover": {
+              background: "linear-gradient(135deg, #a93226, #c0392b)",
+              boxShadow: "0 0 44px rgba(231,76,60,0.75)",
+            },
+          }}
+        >
+          ENTRAR NA ARENA
+        </Button>
+      </div>
 
       {/* Class selection (unlocked at level 10) */}
       {levelInfo && levelInfo.level >= 10 && onClassChange && (
@@ -340,6 +412,40 @@ export default function MainMenuOverlay({
           }}
         >
           <Users size={13} /> Multiplayer
+        </button>
+
+        <button
+          onClick={() => router.push("/challenges")}
+          style={{
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,165,0,0.4)",
+            background: "rgba(255,165,0,0.1)",
+            color: "rgba(255,200,100,0.9)",
+            fontSize: 12,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            fontFamily: "inherit",
+            fontWeight: 700,
+            backdropFilter: "blur(8px)",
+            transition: "all 0.15s",
+            boxShadow: "0 0 12px rgba(255,165,0,0.15)",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,165,0,0.22)";
+            (e.currentTarget as HTMLButtonElement).style.color = "#ffd700";
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 20px rgba(255,165,0,0.3)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,165,0,0.1)";
+            (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,200,100,0.9)";
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 12px rgba(255,165,0,0.15)";
+          }}
+        >
+          <Target size={13} /> Desafios
         </button>
 
         <button
@@ -477,26 +583,26 @@ export default function MainMenuOverlay({
           onClick={togglePush}
           disabled={pushLoading || pushState === "unsupported" || pushState === "denied"}
           title={
-            pushState === "subscribed" ? "Desactivar notificações" :
+            pushActive ? "Desactivar notificações" :
             pushState === "denied" ? "Notificações bloqueadas no browser" :
             pushState === "unsupported" ? "Notificações não suportadas" :
             "Activar notificações"
           }
           style={{
             padding: "10px 12px", borderRadius: 8,
-            border: `1px solid ${pushState === "subscribed" ? "rgba(46,204,113,0.35)" : "rgba(255,255,255,0.1)"}`,
-            background: pushState === "subscribed" ? "rgba(46,204,113,0.08)" : "rgba(255,255,255,0.04)",
-            color: pushState === "subscribed" ? "rgba(100,220,140,0.85)" : pushState === "denied" || pushState === "unsupported" ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.5)",
+            border: `1px solid ${pushActive ? "rgba(46,204,113,0.35)" : "rgba(255,255,255,0.1)"}`,
+            background: pushActive ? "rgba(46,204,113,0.08)" : "rgba(255,255,255,0.04)",
+            color: pushActive ? "rgba(100,220,140,0.85)" : pushState === "denied" || pushState === "unsupported" ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.5)",
             fontSize: 12, cursor: pushState === "unsupported" || pushState === "denied" ? "not-allowed" : "pointer",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             fontFamily: "inherit", backdropFilter: "blur(8px)", transition: "all 0.15s",
             opacity: pushState === "unsupported" || pushState === "denied" ? 0.45 : 1,
           }}
           onMouseEnter={(e) => { if (pushState !== "unsupported" && pushState !== "denied") { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.09)"; (e.currentTarget as HTMLButtonElement).style.color = "#fff"; } }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = pushState === "subscribed" ? "rgba(46,204,113,0.08)" : "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLButtonElement).style.color = pushState === "subscribed" ? "rgba(100,220,140,0.85)" : "rgba(255,255,255,0.5)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = pushActive ? "rgba(46,204,113,0.08)" : "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLButtonElement).style.color = pushActive ? "rgba(100,220,140,0.85)" : "rgba(255,255,255,0.5)"; }}
         >
-          {pushState === "subscribed" ? <Bell size={13} /> : <BellOff size={13} />}
-          {pushState === "subscribed" ? "Notif. On" : "Notif. Off"}
+          {pushActive ? <Bell size={13} /> : <BellOff size={13} />}
+          {pushActive ? "Notif. On" : "Notif. Off"}
         </button>
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}

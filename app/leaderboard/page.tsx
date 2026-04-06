@@ -124,7 +124,10 @@ export default function LeaderboardPage() {
                   <Box sx={{ width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, background: isMe ? "rgba(123,47,247,0.4)" : "rgba(255,255,255,0.07)", border: isMe ? "1px solid rgba(123,47,247,0.4)" : "1px solid rgba(255,255,255,0.08)", color: isMe ? "#aa55ff" : "rgba(255,255,255,0.6)", flexShrink: 0 }}>
                     {r.username.slice(0, 2).toUpperCase()}
                   </Box>
-                  <Typography sx={{ fontSize: 14, fontWeight: isMe ? 700 : 400, color: isMe ? "#aa55ff" : "rgba(255,255,255,0.9)" }}>
+                  <Typography
+                    sx={{ fontSize: 14, fontWeight: isMe ? 700 : 400, color: isMe ? "#aa55ff" : "rgba(255,255,255,0.9)", cursor: "pointer", "&:hover": { color: "#aa55ff" }, transition: "color 0.2s" }}
+                    onClick={() => router.push(`/perfil/${encodeURIComponent(r.username)}`)}
+                  >
                     {r.username}
                     {isMe && <span style={{ fontSize: 10, marginLeft: 6, color: "rgba(200,150,255,0.75)" }}>tu</span>}
                     {isMe && <LevelBadge username={r.username} />}

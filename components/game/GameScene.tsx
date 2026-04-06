@@ -12,7 +12,14 @@ import { createSpawner } from "@/lib/gameSpawner";
 
 const AR = 18;
 
-export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
+export interface ChallengeProps {
+  challengeMode: true;
+  mapId: string;
+  seed: number;
+  onGameOver: (score: number, wave: number, kills: number) => void;
+}
+
+export default function GameScene({ multiProps, challengeProps }: { multiProps?: MultiProps; challengeProps?: ChallengeProps }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef<any>({});
   const store = useGameStore();
@@ -735,7 +742,7 @@ export default function GameScene({ multiProps }: { multiProps?: MultiProps }) {
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
-      <HUD multiProps={multiProps} />
+      <HUD multiProps={multiProps} challengeProps={challengeProps} />
     </div>
   );
 }

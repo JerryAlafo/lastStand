@@ -39,6 +39,7 @@ export interface GameState {
 
   // Class & session tracking
   selectedClass: ClassType | null
+  selectedMap: string
   blastCount: number       // blasts used this session
   xpMultiplier: number
 
@@ -72,6 +73,7 @@ export interface GameState {
   applyUpgrade: (id: string) => void
   setPendingUpgrade: (v: boolean) => void
   setClass: (c: ClassType | null) => void
+  setMap: (m: string) => void
   addBlast: () => void
 }
 
@@ -106,6 +108,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   upgrades: [],
   pendingUpgrade: false,
   selectedClass: null,
+  selectedMap: "arena",
   blastCount: 0,
   xpMultiplier: 1,
   running: false, gameOver: false, waveMessage: '',
@@ -236,10 +239,13 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setClass: (c) => set({ selectedClass: c }),
 
+  setMap: (m) => set({ selectedMap: m }),
+
   addBlast: () => set((s) => ({ blastCount: s.blastCount + 1 })),
 
   reset: () => set((s) => {
     const base = classStats(s.selectedClass)
+    const count = 8 + 1 * 3
     return {
       ...base,
       score: 0, kills: 0, wave: 1,
@@ -247,7 +253,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       bulletDamage: 1,
       fireTimer: 0, dashTimer: 0, dashCooldown: 60,
       waveTimer: 0, waveDelay: 180,
-      spawnQueue: 0, spawnTimer: 0, enemiesLeft: 0,
+      spawnQueue: count, spawnTimer: 0, enemiesLeft: count,
       activeEffects: {},
       upgrades: [],
       pendingUpgrade: false,
@@ -255,7 +261,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       xpMultiplier: 1,
       running: true,
       gameOver: false,
-      waveMessage: '',
+      waveMessage: 'WAVE 1!',
       selectedClass: s.selectedClass,
     }
   }),

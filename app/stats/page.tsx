@@ -406,10 +406,14 @@ export default function StatsPage() {
                           : "Líder PVP"}
                     </Typography>
                     <Typography
+                      onClick={() => router.push(`/perfil/${encodeURIComponent(champion.username)}`)}
                       sx={{
                         fontSize: 20,
                         fontWeight: 900,
                         color: tab === "solo" ? "#ffd700" : "#e74c3c",
+                        cursor: "pointer",
+                        "&:hover": { color: "#aa55ff" },
+                        transition: "color 0.2s",
                       }}
                     >
                       {champion.username}
@@ -674,6 +678,7 @@ export default function StatsPage() {
                           </Typography>
                           <Box sx={{ width: isMobile ? 80 : 120, flexShrink: 0, minWidth: 0 }}>
                             <Typography
+                              onClick={() => router.push(`/perfil/${encodeURIComponent(p.username)}`)}
                               sx={{
                                 fontSize: isMobile ? 13 : 14,
                                 fontWeight: 600,
@@ -681,6 +686,9 @@ export default function StatsPage() {
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
+                                cursor: "pointer",
+                                "&:hover": { color: "#aa55ff" },
+                                transition: "color 0.2s",
                               }}
                             >
                               {p.username}
@@ -817,6 +825,7 @@ export default function StatsPage() {
                         </Typography>
                         <Box sx={{ width: isMobile ? 80 : 120, flexShrink: 0, minWidth: 0 }}>
                           <Typography
+                            onClick={() => router.push(`/perfil/${encodeURIComponent(p.username)}`)}
                             sx={{
                               fontSize: isMobile ? 13 : 14,
                               fontWeight: 600,
@@ -824,6 +833,9 @@ export default function StatsPage() {
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
+                              cursor: "pointer",
+                              "&:hover": { color: "#aa55ff" },
+                              transition: "color 0.2s",
                             }}
                           >
                             {p.username}

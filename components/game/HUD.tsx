@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { UPGRADE_POOL } from "@/lib/upgradeCards";
 import { MultiProps } from "@/lib/gameTypes";
+import { ChallengeProps } from "./GameScene";
 import VirtualControls from "./VirtualControls";
 import SettingsModal from "./SettingsModal";
 import GameOverScreen from "./GameOverScreen";
@@ -42,7 +43,7 @@ function lerpRgba(night: number[], day: number[], t: number): string {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
+export default function HUD({ multiProps, challengeProps }: { multiProps?: MultiProps; challengeProps?: ChallengeProps }) {
   const router = useRouter();
   const { data: session } = useSession();
   const username = session?.user?.username ?? "";
@@ -51,7 +52,7 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
     hp, maxHp, score, kills, wave, xp, xpNext,
     activeEffects, running, gameOver, waveMessage,
     setRunning, reset, setWaveMessage,
-    upgrades, pendingUpgrade, applyUpgrade, selectedClass, setClass, blastCount,
+    upgrades, pendingUpgrade, applyUpgrade, selectedClass, setClass, blastCount, selectedMap, setMap,
   } = useGameStore();
 
   // Track if game has ever been started (to distinguish pause from main menu)
@@ -144,6 +145,7 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
   }, [hp]);
 
   const [showSettings, setShowSettings] = useState(false);
+  const [wasRunningBeforeSettings, setWasRunningBeforeSettings] = useState(false);
   const [cfg, setCfg] = useState(() => {
     if (typeof window === "undefined")
       return { skin: "#c68642", shirt: "#4a90d9", shorts: "#1a2255", shoe: "#111111" };
@@ -223,6 +225,11 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
     if (!gameOver) { savedRef.current = false; return; }
     if (savedRef.current) return;
     savedRef.current = true;
+
+    if (challengeProps?.onGameOver) {
+      challengeProps.onGameOver(score, wave, kills);
+    }
+
     fetch("/api/scores/save", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -396,7 +403,7 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
         </Button>
 
         <Button
-          onClick={() => { setShowSettings(true); setRunning(false); }}
+          onClick={() => { setWasRunningBeforeSettings(running); setShowSettings(true); setRunning(false); }}
           variant="contained"
           startIcon={<Settings size={14} />}
           sx={{
@@ -571,7 +578,7 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
       {/* ── Settings modal ── */}
       <SettingsModal
         open={showSettings}
-        onClose={() => { setShowSettings(false); setRunning(true); }}
+        onClose={() => { setShowSettings(false); if (wasRunningBeforeSettings) setRunning(true); }}
         cfg={cfg}
         onSave={saveSettings}
         username={username}
@@ -610,7 +617,7 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
           initials={initials}
           username={username}
           onResume={() => setRunning(true)}
-          onSettings={() => setShowSettings(true)}
+          onSettings={() => { setWasRunningBeforeSettings(running); setShowSettings(true); }}
           goToMenu={goToMenu}
         />
       )}
@@ -624,8 +631,9 @@ export default function HUD({ multiProps }: { multiProps?: MultiProps }) {
           kills={kills}
           best={best}
           score={score}
-          onStart={() => reset()}
-          onSettings={() => setShowSettings(true)}
+          selectedMap={selectedMap}
+          onStart={(mapId) => { setMap(mapId); reset(); }}
+          onSettings={() => { setWasRunningBeforeSettings(running); setShowSettings(true); }}
           router={router}
           multiProps={multiProps}
           levelInfo={levelInfo ? { ...levelInfo, selectedClass: selectedClass } : null}
