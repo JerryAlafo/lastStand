@@ -118,6 +118,7 @@ function GamePageInner() {
   const router = useRouter();
   const params = useSearchParams();
   const [showSplash, setShowSplash] = useState(true);
+  const [gameKey, setGameKey] = useState(0);
 
   const roomId = params.get("room") ?? undefined;
   const role   = (params.get("role") ?? undefined) as "host" | "guest" | undefined;
@@ -129,10 +130,16 @@ function GamePageInner() {
     if (status === "unauthenticated") router.replace("/login");
   }, [status, router]);
 
+  useEffect(() => {
+    const handler = () => setGameKey(k => k + 1);
+    window.addEventListener("gameRestart", handler);
+    return () => window.removeEventListener("gameRestart", handler);
+  }, []);
+
   return (
     <div style={{ width: "100vw", height: "100vh", overflow: "hidden", background: "#0a0008" }}>
       {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
-      <GameScene multiProps={multiProps} />
+      <GameScene key={gameKey} multiProps={multiProps} />
     </div>
   );
 }

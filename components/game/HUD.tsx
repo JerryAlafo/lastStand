@@ -632,7 +632,7 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
           best={best}
           score={score}
           selectedMap={selectedMap}
-          onStart={(mapId) => { setMap(mapId); reset(); }}
+          onStart={(mapId) => { setMap(mapId); window.dispatchEvent(new CustomEvent("gameRestart")); reset(); }}
           onSettings={() => { setWasRunningBeforeSettings(running); setShowSettings(true); }}
           router={router}
           multiProps={multiProps}

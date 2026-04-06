@@ -243,9 +243,10 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   addBlast: () => set((s) => ({ blastCount: s.blastCount + 1 })),
 
-  reset: () => set((s) => {
+  reset: (mapId?: string) => set((s) => {
     const base = classStats(s.selectedClass)
     const count = 8 + 1 * 3
+    const map = mapId ?? s.selectedMap
     return {
       hp: base.hp,
       maxHp: base.maxHp,
@@ -267,7 +268,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       gameOver: false,
       waveMessage: 'WAVE 1!',
       selectedClass: s.selectedClass,
-      selectedMap: s.selectedMap,
+      selectedMap: map,
     }
   }),
 }))

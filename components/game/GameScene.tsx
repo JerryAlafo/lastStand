@@ -56,8 +56,7 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
     scene.background = new THREE.Color(0x050010);
     scene.fog = new THREE.Fog(0x0a0020, isWeak ? 30 : 60, isWeak ? 80 : 220);
 
-    // Build arena (starfield, clouds, camera, lights, floor, bleachers…)
-    // Pass isWeak as isMobile so arenaBuilder applies all optimisations
+    // Build arena with the selected map
     const mapId = challengeProps?.mapId ?? storeRef.current.selectedMap;
     const mapConfig = getMapById(mapId);
     const {
@@ -69,6 +68,7 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
     camera.updateProjectionMatrix();
     renderer.setClearColor(fogNight.getHex());
     scene.background = new THREE.Color(fogNight.getHex());
+    scene.fog.color.copy(fogNight);
 
     // Player rig
     const playerRig = buildPlayerRig();
