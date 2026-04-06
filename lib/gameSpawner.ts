@@ -17,12 +17,14 @@ interface SpawnerCtx {
   pickupGeo: THREE.OctahedronGeometry;
   puTypes: Array<{ name: string; color: number; effect: string }>;
   isMobile: boolean;
+  speedMult?: number;
+  hpMult?: number;
 }
 
 export function createSpawner(ctx: SpawnerCtx) {
   let enemyIdCounter = 0;
   let pickupIdCounter = 0;
-  const { scene, AR, enemies, bullets, pickups, particles, bulletGeo, bulletMat, pickupGeo, puTypes, isMobile } = ctx;
+  const { scene, AR, enemies, bullets, pickups, particles, bulletGeo, bulletMat, pickupGeo, puTypes, isMobile, speedMult = 1, hpMult = 1 } = ctx;
 
   // ── Instanced particle system ────────────────────────────────────────────
   const _dummy = new THREE.Object3D();
@@ -77,8 +79,8 @@ export function createSpawner(ctx: SpawnerCtx) {
     const hp = 1 + Math.floor(wave * 0.9);
     const isTank = Math.random() < 0.15;
     const type = isTank ? 2 : Math.floor(Math.random() * 3);
-    const spd = (0.04 + wave * 0.005) * (isTank ? 0.6 : 1);
-    const finalHp = isTank ? Math.floor(hp * 2.5) : hp;
+    const spd = (0.04 + wave * 0.005) * (isTank ? 0.6 : 1) * speedMult;
+    const finalHp = Math.floor((isTank ? hp * 2.5 : hp) * hpMult);
     const { group, hpFg, col, arms, legs } = buildEnemyRig(type);
     const angle = Math.random() * Math.PI * 2;
     group.position.set(Math.cos(angle) * (AR - 1), 0, Math.sin(angle) * (AR - 1));

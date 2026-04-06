@@ -247,9 +247,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     const base = classStats(s.selectedClass)
     const count = 8 + 1 * 3
     return {
-      ...base,
+      hp: base.hp,
+      maxHp: base.maxHp,
       score: 0, kills: 0, wave: 1,
       xp: 0, xpNext: 10,
+      fireRate: base.fireRate,
+      shotCount: base.shotCount,
+      playerSpeed: base.playerSpeed,
       bulletDamage: 1,
       fireTimer: 0, dashTimer: 0, dashCooldown: 60,
       waveTimer: 0, waveDelay: 180,
@@ -263,6 +267,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       gameOver: false,
       waveMessage: 'WAVE 1!',
       selectedClass: s.selectedClass,
+      selectedMap: s.selectedMap,
     }
   }),
 }))

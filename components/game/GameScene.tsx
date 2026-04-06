@@ -9,6 +9,7 @@ import { buildPlayerRig } from "@/lib/playerRig";
 import { buildEnemyRig } from "@/lib/enemyRig";
 import { buildArena } from "@/lib/arenaBuilder";
 import { createSpawner } from "@/lib/gameSpawner";
+import { getMapById } from "@/lib/maps";
 
 const AR = 18;
 
@@ -57,13 +58,17 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
 
     // Build arena (starfield, clouds, camera, lights, floor, bleachers…)
     // Pass isWeak as isMobile so arenaBuilder applies all optimisations
+    const mapId = challengeProps?.mapId ?? storeRef.current.selectedMap;
+    const mapConfig = getMapById(mapId);
     const {
       camera, ambientLight, sun, arenaLight, ring,
       clouds, cloudMat, spectatorList,
-      skyNight, skyDay, fogNight, fogDay, ambNight, ambDay, DAY_CYCLE,
-    } = buildArena(scene, isWeak);
+      skyNight, skyDay, fogNight, fogDay, ambNight, ambDay, DAY_CYCLE, arenaRadius,
+    } = buildArena(scene, isWeak, mapId);
     camera.aspect = el.clientWidth / el.clientHeight;
     camera.updateProjectionMatrix();
+    renderer.setClearColor(fogNight.getHex());
+    scene.background = new THREE.Color(fogNight.getHex());
 
     // Player rig
     const playerRig = buildPlayerRig();
@@ -126,7 +131,9 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
     ];
 
     const { spawnBullet, spawnEnemy, spawnPickup, spawnParticles, tickParticles } = createSpawner({
-      scene, AR, enemies, bullets, pickups, particles, bulletGeo, bulletMat, pickupGeo, puTypes, isMobile: isWeak,
+      scene, AR: arenaRadius, enemies, bullets, pickups, particles, bulletGeo, bulletMat, pickupGeo, puTypes, isMobile: isWeak,
+      speedMult: mapConfig?.speedMult ?? 1,
+      hpMult: mapConfig?.hpMult ?? 1,
     });
 
     // Input

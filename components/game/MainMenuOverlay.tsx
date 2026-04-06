@@ -60,6 +60,8 @@ export default function MainMenuOverlay({
     }
     if (Notification.permission === "denied") { setPushState("denied"); return; }
 
+    const optedOut = typeof window !== "undefined" && localStorage.getItem("lsa_push_optout") === "1";
+
     (async () => {
       try {
         const res = await fetch("/api/push/subscribe");
@@ -68,6 +70,11 @@ export default function MainMenuOverlay({
         if (d.subscribed) {
           setPushState("subscribed");
           subscribedRef.current = true;
+          return;
+        }
+
+        if (optedOut) {
+          setPushState("idle");
           return;
         }
 
@@ -110,6 +117,7 @@ export default function MainMenuOverlay({
         }
         await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subscription: sub.toJSON() }) });
         subscribedRef.current = true;
+        localStorage.removeItem("lsa_push_optout");
         setPushState("subscribed");
       } else {
         await fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ unsubscribe: true }) });
@@ -117,6 +125,7 @@ export default function MainMenuOverlay({
         const sub = await reg.pushManager.getSubscription();
         await sub?.unsubscribe();
         subscribedRef.current = false;
+        localStorage.setItem("lsa_push_optout", "1");
         setPushState("idle");
       }
     } catch { /* silent */ }

@@ -1,6 +1,5 @@
 import * as THREE from "three";
-
-const AR = 18;
+import { getMapById } from "./maps";
 
 export interface CloudEntry { group: THREE.Group; speed: number; angle: number; radius: number; y: number }
 export interface SpectatorEntry { group: THREE.Group; armL: THREE.Mesh; armR: THREE.Mesh; animOffset: number }
@@ -18,9 +17,18 @@ export interface ArenaResult {
   fogNight: THREE.Color; fogDay: THREE.Color;
   ambNight: THREE.Color; ambDay: THREE.Color;
   DAY_CYCLE: number;
+  arenaRadius: number;
 }
 
-export function buildArena(scene: THREE.Scene, isMobile: boolean): ArenaResult {
+export function buildArena(scene: THREE.Scene, isMobile: boolean, mapId = "arena"): ArenaResult {
+  const map = getMapById(mapId);
+  const AR = map?.arenaRadius ?? 18;
+  const floorColor = map?.floorColor ?? 0x302f55;
+  const wallColor = map?.wallColor ?? 0x12112b;
+  const ringColor = map?.ringColor ?? 0xff2244;
+  const fogColor = map?.fogColor ?? 0x0a0020;
+  const skyColor = map?.skyColor ?? 0x050010;
+  const accentColor = map?.accentColor ?? "#7b2ff7";
   // Weak device: Android, iOS, or any mobile (use minimal scene)
   const isAndroid = /Android/i.test(typeof navigator !== "undefined" ? navigator.userAgent : "");
   const isWeak = isMobile || isAndroid;
@@ -98,9 +106,9 @@ export function buildArena(scene: THREE.Scene, isMobile: boolean): ArenaResult {
   scene.add(sun);
 
   // Day/night colours
-  const skyNight = new THREE.Color(0x050010);
+  const skyNight = new THREE.Color(skyColor);
   const skyDay   = new THREE.Color(0xadd8e6);
-  const fogNight = new THREE.Color(0x0a0020);
+  const fogNight = new THREE.Color(fogColor);
   const fogDay   = new THREE.Color(0xadd8e6);
   const ambNight = new THREE.Color(0x2233aa);
   const ambDay   = new THREE.Color(0xfff5d0);
@@ -116,7 +124,7 @@ export function buildArena(scene: THREE.Scene, isMobile: boolean): ArenaResult {
   // Floor & grid
   const floor = new THREE.Mesh(
     new THREE.CylinderGeometry(AR, AR, 0.4, isWeak ? 20 : 48),
-    new THREE.MeshStandardMaterial({ color: 0x302f55, roughness: 0.95 }),
+    new THREE.MeshStandardMaterial({ color: floorColor, roughness: 0.95 }),
   );
   floor.position.y = -0.2; floor.receiveShadow = true; scene.add(floor);
   const grid = new THREE.GridHelper(AR * 2, 40, 0x553366, 0x221122);
@@ -133,7 +141,7 @@ export function buildArena(scene: THREE.Scene, isMobile: boolean): ArenaResult {
   ringFloor.rotation.x = -Math.PI / 2; ringFloor.position.y = -0.14; scene.add(ringFloor);
 
   // Walls
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x12112b, roughness: 0.85, emissive: new THREE.Color(0x180a40), emissiveIntensity: 0.25, side: THREE.DoubleSide });
+  const wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.85, emissive: new THREE.Color(wallColor).multiplyScalar(0.6), emissiveIntensity: 0.25, side: THREE.DoubleSide });
   const wallDepth = 0.4, wallHeight = 2.5, wallLength = AR * 2 + 1;
   for (const w of [
     { x: 0, y: wallHeight / 2, z: -AR - wallDepth / 2, ry: 0 },
@@ -148,7 +156,7 @@ export function buildArena(scene: THREE.Scene, isMobile: boolean): ArenaResult {
   // Boundary ring + pillars
   const ring = new THREE.Mesh(
     new THREE.TorusGeometry(AR, 0.18, 6, isWeak ? 24 : 48),
-    new THREE.MeshBasicMaterial({ color: 0xff2244 }),
+    new THREE.MeshBasicMaterial({ color: ringColor }),
   );
   ring.rotation.x = Math.PI / 2; ring.position.y = 0.05; scene.add(ring);
   for (let i = 0; i < 16; i++) {
@@ -233,5 +241,5 @@ export function buildArena(scene: THREE.Scene, isMobile: boolean): ArenaResult {
     }
   }
 
-  return { camera, ambientLight, sun, arenaLight, ring, clouds, cloudMat, spectatorList, skyNight, skyDay, fogNight, fogDay, ambNight, ambDay, DAY_CYCLE };
+  return { camera, ambientLight, sun, arenaLight, ring, clouds, cloudMat, spectatorList, skyNight, skyDay, fogNight, fogDay, ambNight, ambDay, DAY_CYCLE, arenaRadius: AR };
 }
