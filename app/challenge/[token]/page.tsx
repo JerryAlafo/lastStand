@@ -8,7 +8,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { ArrowLeft, Swords, Clock, MapPin, Trophy, Share2, Play, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Swords, Clock, MapPin, Trophy, Share2, Play, AlertTriangle, CheckCircle2, Zap, BarChart2, Crosshair } from "lucide-react";
 import { getMapById } from "@/lib/maps";
 
 const GameScene = dynamic(() => import("@/components/game/GameScene"), { ssr: false, loading: () => <div style={{ width: "100vw", height: "100vh", background: "#0a0008", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "monospace" }}>A carregar...</div> });
@@ -22,9 +22,13 @@ interface ChallengeInfo {
   score: number;
   wave: number;
   kills: number;
+  targetScore?: number;
+  targetWaves?: number;
+  targetKills?: number;
   createdAt: number;
   expiresAt: number;
   status: string;
+  completedBy?: string;
 }
 
 export default function ChallengePage() {
@@ -39,6 +43,9 @@ export default function ChallengePage() {
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [expired, setExpired] = useState(false);
+  const [alreadyCompleted, setAlreadyCompleted] = useState(false);
+  const [showCompletedModal, setShowCompletedModal] = useState(false);
+  const [lastScore, setLastScore] = useState(0);
 
   useEffect(() => {
     if (!token) return;
@@ -48,7 +55,14 @@ export default function ChallengePage() {
         if (!r.ok) throw new Error("Desafio não encontrado.");
         return r.json();
       })
-      .then(d => { if (d?.challenge) setChallenge(d.challenge); })
+      .then(d => { 
+        if (d?.challenge) {
+          setChallenge(d.challenge);
+          if (d.challenge.completedBy) {
+            setAlreadyCompleted(true);
+          }
+        }
+      })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [token]);
@@ -61,11 +75,16 @@ export default function ChallengePage() {
   const handleGameOver = useCallback(async (score: number, wave: number, kills: number) => {
     if (!challenge) return;
     try {
-      await fetch(`/api/challenges/${encodeURIComponent(challenge.id)}/submit`, {
+      const res = await fetch(`/api/challenges/${encodeURIComponent(challenge.id)}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ score, wave, kills }),
       });
+      const data = await res.json();
+      if (data.beatRecord) {
+        setLastScore(score);
+        setShowCompletedModal(true);
+      }
     } catch {}
   }, [challenge]);
 
@@ -74,7 +93,7 @@ export default function ChallengePage() {
   if (playing && challenge) {
     return (
       <div style={{ width: "100vw", height: "100vh", overflow: "hidden", background: "#0a0008" }}>
-        <GameScene challengeProps={{ challengeMode: true, mapId: challenge.mapId, seed: challenge.seed, onGameOver: handleGameOver }} />
+        <GameScene challengeProps={{ challengeMode: true, mapId: challenge.mapId, challengeToken: token, seed: challenge.seed, onGameOver: handleGameOver }} />
       </div>
     );
   }
@@ -95,6 +114,26 @@ export default function ChallengePage() {
         <Typography sx={{ fontSize: 14, color: "rgba(255,255,255,0.5)", textAlign: "center" }}>Este desafio expirou após 24 horas.</Typography>
         <Button onClick={() => router.push("/game")} variant="outlined" sx={{ color: "rgba(255,255,255,0.6)", borderColor: "rgba(255,255,255,0.15)", borderRadius: 2, textTransform: "none" }}>
           Voltar ao Jogo
+        </Button>
+      </div>
+    );
+  }
+
+  if (showCompletedModal) {
+    return (
+      <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 50% 35%, rgba(46,204,113,0.15) 0%, #0a0010 60%)", color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, fontFamily: "'Segoe UI', sans-serif", padding: 20, backdropFilter: "blur(16px)" }}>
+        <div style={{ position: "absolute", top: "15%", left: "50%", transform: "translateX(-50%)", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(46,204,113,0.2) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <CheckCircle2 size={64} color="#2ecc71" style={{ filter: "drop-shadow(0 0 20px #2ecc71)" }} />
+        <Typography sx={{ fontSize: 28, fontWeight: 900, color: "#2ecc71", textShadow: "0 0 28px rgba(46,204,113,0.5)" }}>
+          DESAFIO CONCLUÍDO!
+        </Typography>
+        <Box sx={{ textAlign: "center", background: "rgba(46,204,113,0.08)", border: "1px solid rgba(46,204,113,0.3)", borderRadius: 3, p: "16px 32px" }}>
+          <Typography sx={{ fontSize: 16, color: "rgba(255,255,255,0.6)", mb: 1 }}>Score</Typography>
+          <Typography sx={{ fontSize: 36, fontWeight: 900, color: "#ffd700" }}>{lastScore.toLocaleString()}</Typography>
+        </Box>
+        <Button onClick={() => router.push("/challenges")} variant="contained" startIcon={<Swords size={16} />}
+          sx={{ background: "linear-gradient(135deg, #2ecc71, #27ae60)", color: "#fff", fontSize: 14, fontWeight: 700, borderRadius: 2, textTransform: "none", px: 4, py: 1.5 }}>
+          Ver Desafios
         </Button>
       </div>
     );
@@ -147,12 +186,38 @@ export default function ChallengePage() {
             )}
           </Box>
 
-          {challenge.score > 0 && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
-              <Trophy size={16} color="#ffd700" />
-              <Typography sx={{ fontSize: 14, color: "rgba(255,255,255,0.5)" }}>Score para bater:</Typography>
-              <Typography sx={{ fontSize: 20, fontWeight: 900, color: "#ffd700" }}>{challenge.score.toLocaleString()}</Typography>
+          {(challenge.targetScore || challenge.targetWaves || challenge.targetKills) ? (
+            <Box sx={{ display: "flex", gap: 2, mb: 1.5, flexWrap: "wrap" }}>
+              {challenge.targetScore && (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Zap size={14} color="#ffd700" />
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#ffd700" }}>{challenge.targetScore.toLocaleString()}</Typography>
+                  <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>pts</Typography>
+                </Box>
+              )}
+              {challenge.targetWaves && (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <BarChart2 size={14} color="#f39c12" />
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#f39c12" }}>{challenge.targetWaves}</Typography>
+                  <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>waves</Typography>
+                </Box>
+              )}
+              {challenge.targetKills && (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Crosshair size={14} color="#e74c3c" />
+                  <Typography sx={{ fontSize: 14, fontWeight: 700, color: "#e74c3c" }}>{challenge.targetKills}</Typography>
+                  <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>kills</Typography>
+                </Box>
+              )}
             </Box>
+          ) : (
+            challenge.score > 0 && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+                <Trophy size={16} color="#ffd700" />
+                <Typography sx={{ fontSize: 14, color: "rgba(255,255,255,0.5)" }}>Score para bater:</Typography>
+                <Typography sx={{ fontSize: 20, fontWeight: 900, color: "#ffd700" }}>{challenge.score.toLocaleString()}</Typography>
+              </Box>
+            )
           )}
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -163,10 +228,17 @@ export default function ChallengePage() {
           </Box>
         </Box>
 
-        <Button onClick={handlePlay} variant="contained" startIcon={<Play size={18} />}
-          sx={{ width: "100%", mb: 2, background: "linear-gradient(135deg, #c0392b, #e74c3c)", color: "#fff", fontSize: 16, fontWeight: 800, letterSpacing: 2, fontFamily: "monospace", py: 2, borderRadius: 2, textTransform: "none", boxShadow: "0 0 32px rgba(231,76,60,0.55)" }}>
-          ACEITAR DESAFIO
-        </Button>
+        {alreadyCompleted ? (
+          <Box sx={{ p: "16px", background: "rgba(231,76,60,0.1)", border: "1px solid rgba(231,76,60,0.3)", borderRadius: 3, textAlign: "center", mb: 2 }}>
+            <Typography sx={{ fontSize: 14, color: "#e74c3c", fontWeight: 700, mb: 0.5 }}>Este desafio já foi completado</Typography>
+            <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Por: {challenge.completedBy}</Typography>
+          </Box>
+        ) : (
+          <Button onClick={handlePlay} variant="contained" startIcon={<Play size={18} />}
+            sx={{ width: "100%", mb: 2, background: "linear-gradient(135deg, #c0392b, #e74c3c)", color: "#fff", fontSize: 16, fontWeight: 800, letterSpacing: 2, fontFamily: "monospace", py: 2, borderRadius: 2, textTransform: "none", boxShadow: "0 0 32px rgba(231,76,60,0.55)" }}>
+            ACEITAR DESAFIO
+          </Button>
+        )}
 
         {status === "authenticated" && (
           <Button onClick={() => { navigator.clipboard?.writeText(shareLink); }} variant="outlined" startIcon={<Share2 size={16} />}

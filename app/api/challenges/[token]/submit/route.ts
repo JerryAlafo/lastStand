@@ -18,6 +18,10 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       return NextResponse.json({ error: "Desafio expirado." }, { status: 410 });
     }
 
+    if (challenge.completedBy && challenge.completedBy !== username) {
+      return NextResponse.json({ error: "Este desafio já foi completado por outro jogador." }, { status: 403 });
+    }
+
     if (challenge.creator === username) {
       return NextResponse.json({ error: "Não podes aceitar o teu próprio desafio." }, { status: 400 });
     }
@@ -31,15 +35,28 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
     }
 
-    if (score > challenge.score) {
-      challenge.score = score;
-      challenge.wave = wave;
-      challenge.kills = kills;
-      challenge.status = "completed";
-      await upsertChallenge(challenge);
+    const hasScoreTarget = challenge.targetScore != null;
+    const hasWaveTarget = challenge.targetWaves != null;
+    const hasKillsTarget = challenge.targetKills != null;
+    const metScoreTarget = !hasScoreTarget || score >= challenge.targetScore;
+    const metWaveTarget = !hasWaveTarget || wave >= challenge.targetWaves;
+    const metKillsTarget = !hasKillsTarget || kills >= challenge.targetKills;
+    const completedAllTargets = (!hasScoreTarget && !hasWaveTarget && !hasKillsTarget) || (metScoreTarget && metWaveTarget && metKillsTarget);
+
+    if (completedAllTargets) {
+      const beatRecord = score > challenge.score;
+      if (beatRecord) {
+        challenge.score = score;
+        challenge.wave = wave;
+        challenge.kills = kills;
+        challenge.status = "completed";
+        challenge.completedBy = username;
+        await upsertChallenge(challenge);
+      }
+      return NextResponse.json({ ok: true, beatRecord, completedAllTargets: true });
     }
 
-    return NextResponse.json({ ok: true, beatRecord: score > 0 });
+    return NextResponse.json({ ok: true, beatRecord: false, completedAllTargets: false });
   } catch {
     return NextResponse.json({ error: "Falha ao submeter desafio." }, { status: 500 });
   }

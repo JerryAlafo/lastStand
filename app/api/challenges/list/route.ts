@@ -10,7 +10,12 @@ export async function GET() {
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 50);
 
-    return NextResponse.json({ challenges: active });
+    const activeWithStatus = active.map(c => ({
+      ...c,
+      isCompleted: !!c.completedBy,
+    }));
+
+    return NextResponse.json({ challenges: activeWithStatus });
   } catch {
     return NextResponse.json({ error: "Falha ao carregar desafios." }, { status: 500 });
   }

@@ -9,7 +9,7 @@ import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import {
-  ArrowLeft, Swords, Target, Plus, Clock, Trophy, MapPin, Share2, Copy, Check,
+  ArrowLeft, Swords, Target, Plus, Clock, Trophy, MapPin, Share2, Copy, Check, Zap, BarChart2, Crosshair,
 } from "lucide-react";
 import { MAPS } from "@/lib/maps";
 
@@ -20,9 +20,14 @@ interface Challenge {
   score: number;
   wave: number;
   kills: number;
+  targetScore?: number;
+  targetWaves?: number;
+  targetKills?: number;
   createdAt: number;
   expiresAt: number;
   status: string;
+  isCompleted?: boolean;
+  completedBy?: string;
 }
 
 export default function ChallengesPage() {
@@ -34,6 +39,10 @@ export default function ChallengesPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [selectedMap, setSelectedMap] = useState<string | null>(null);
+  const [targetScore, setTargetScore] = useState<number>(0);
+  const [targetWaves, setTargetWaves] = useState<number>(0);
+  const [targetKills, setTargetKills] = useState<number>(0);
+  const hasAtLeastOneTarget = targetScore > 0 || targetWaves > 0 || targetKills > 0;
   const [creating, setCreating] = useState(false);
   const [joinToken, setJoinToken] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -55,13 +64,18 @@ export default function ChallengesPage() {
       const res = await fetch("/api/challenges/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mapId: selectedMap }),
+        body: JSON.stringify({ 
+          mapId: selectedMap,
+          targetScore: targetScore || undefined,
+          targetWaves: targetWaves || undefined,
+          targetKills: targetKills || undefined,
+        }),
       });
       const data = await res.json();
       if (data.ok) {
         const map = MAPS.find(m => m.id === selectedMap);
         setCreatedChallenge({ id: data.challenge.id, mapName: map?.namePt ?? selectedMap });
-        setChallenges(prev => [data.challenge, ...prev]);
+        setChallenges(prev => [{ ...data.challenge, isCompleted: false }, ...prev]);
       }
     } catch {}
     finally { setCreating(false); }
@@ -87,7 +101,7 @@ export default function ChallengesPage() {
     return (
       <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 50% 20%, #1a0a3a 0%, #0a0010 65%)", color: "#fff", padding: "28px 20px", fontFamily: "'Segoe UI', sans-serif" }}>
         <Box sx={{ maxWidth: 600, mx: "auto" }}>
-          <Button onClick={() => { setShowCreate(false); setCreatedChallenge(null); setSelectedMap(null); }} startIcon={<ArrowLeft size={16} />} variant="outlined"
+          <Button onClick={() => { setShowCreate(false); setCreatedChallenge(null); setSelectedMap(null); setTargetScore(0); setTargetWaves(0); setTargetKills(0); }} startIcon={<ArrowLeft size={16} />} variant="outlined"
             sx={{ mb: 3, color: "rgba(255,255,255,0.7)", borderColor: "rgba(255,255,255,0.15)", borderRadius: 2, textTransform: "none" }}>
             Voltar
           </Button>
@@ -115,22 +129,90 @@ export default function ChallengesPage() {
               </Box>
             </Box>
           ) : (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Typography sx={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.7)", mb: -1 }}>
+                Seleciona o Mapa
+              </Typography>
               {MAPS.map(map => (
                 <Box key={map.id} onClick={() => setSelectedMap(map.id)}
-                  sx={{ p: "16px", borderRadius: 2, cursor: "pointer", border: `1px solid ${selectedMap === map.id ? map.accentColor : "rgba(255,255,255,0.1)"}`, background: selectedMap === map.id ? `${map.accentColor}15` : "rgba(255,255,255,0.03)", transition: "all 0.2s" }}>
+                  sx={{ p: "14px 16px", borderRadius: 2, cursor: "pointer", border: `1px solid ${selectedMap === map.id ? map.accentColor : "rgba(255,255,255,0.1)"}`, background: selectedMap === map.id ? `${map.accentColor}15` : "rgba(255,255,255,0.03)", transition: "all 0.2s" }}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                    <MapPin size={16} color={map.accentColor} />
-                    <Typography sx={{ fontSize: 15, fontWeight: 700 }}>{map.namePt}</Typography>
-                    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, background: "#e74c3c22", border: "1px solid #e74c3c55", color: "#e74c3c", fontWeight: 700 }}>
+                    <MapPin size={14} color={map.accentColor} />
+                    <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{map.namePt}</Typography>
+                    <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 6, background: "#e74c3c22", border: "1px solid #e74c3c55", color: "#e74c3c", fontWeight: 700 }}>
                       EXTREMO
                     </span>
                   </Box>
-                  <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.4)", mt: 0.5 }}>{map.descPt}</Typography>
                 </Box>
               ))}
-              <Button onClick={createChallenge} disabled={!selectedMap || creating} variant="contained" startIcon={<Swords size={16} />}
-                sx={{ mt: 2, background: "linear-gradient(135deg, #c0392b, #e74c3c)", color: "#fff", fontSize: 14, fontWeight: 800, letterSpacing: 2, fontFamily: "monospace", py: 1.8, borderRadius: 2, textTransform: "none", boxShadow: "0 0 24px rgba(231,76,60,0.4)", opacity: selectedMap ? 1 : 0.4 }}>
+
+              <Box sx={{ mt: 2 }}>
+                <Typography sx={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.7)", mb: 1.5 }}>
+                  Objetivos do Desafio
+                </Typography>
+                <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.4)", mb: 2 }}>
+                  Deixa em branco os objetivos que não quiseres definir
+                </Typography>
+                <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+                  <Box sx={{ flex: "1 1 160px" }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
+                      <Zap size={12} color="#ffd700" />
+                      <Typography sx={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Score mínimo</Typography>
+                    </Box>
+                    <TextField
+                      type="number"
+                      placeholder="0"
+                      value={targetScore || ""}
+                      onChange={e => setTargetScore(Number(e.target.value) || 0)}
+                      size="small"
+                      fullWidth
+                      InputProps={{ inputProps: { min: 0 } }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": { color: "#fff", background: "rgba(255,255,255,0.05)", borderRadius: 2, "& fieldset": { borderColor: "rgba(255,255,255,0.12)" } },
+                      }}
+                    />
+                  </Box>
+                  <Box sx={{ flex: "1 1 120px" }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
+                      <BarChart2 size={12} color="#f39c12" />
+                      <Typography sx={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Wave mínima</Typography>
+                    </Box>
+                    <TextField
+                      type="number"
+                      placeholder="0"
+                      value={targetWaves || ""}
+                      onChange={e => setTargetWaves(Number(e.target.value) || 0)}
+                      size="small"
+                      fullWidth
+                      InputProps={{ inputProps: { min: 0 } }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": { color: "#fff", background: "rgba(255,255,255,0.05)", borderRadius: 2, "& fieldset": { borderColor: "rgba(255,255,255,0.12)" } },
+                      }}
+                    />
+                  </Box>
+                  <Box sx={{ flex: "1 1 120px" }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
+                      <Crosshair size={12} color="#e74c3c" />
+                      <Typography sx={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Kills mínimas</Typography>
+                    </Box>
+                    <TextField
+                      type="number"
+                      placeholder="0"
+                      value={targetKills || ""}
+                      onChange={e => setTargetKills(Number(e.target.value) || 0)}
+                      size="small"
+                      fullWidth
+                      InputProps={{ inputProps: { min: 0 } }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": { color: "#fff", background: "rgba(255,255,255,0.05)", borderRadius: 2, "& fieldset": { borderColor: "rgba(255,255,255,0.12)" } },
+                      }}
+                    />
+                  </Box>
+                </Box>
+              </Box>
+
+              <Button onClick={createChallenge} disabled={!selectedMap || !hasAtLeastOneTarget || creating} variant="contained" startIcon={<Swords size={16} />}
+                sx={{ mt: 2, background: "linear-gradient(135deg, #c0392b, #e74c3c)", color: "#fff", fontSize: 14, fontWeight: 800, letterSpacing: 2, fontFamily: "monospace", py: 1.8, borderRadius: 2, textTransform: "none", boxShadow: "0 0 24px rgba(231,76,60,0.4)", opacity: (!selectedMap || !hasAtLeastOneTarget) ? 0.4 : 1 }}>
                 {creating ? "A criar..." : "CRIAR DESAFIO"}
               </Button>
             </Box>
@@ -219,6 +301,11 @@ export default function ChallengesPage() {
                           EXTREMO
                         </span>
                       )}
+                      {ch.isCompleted && (
+                        <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 6, background: "#2ecc7122", border: "1px solid #2ecc7155", color: "#2ecc71", fontWeight: 700 }}>
+                          COMPLETO
+                        </span>
+                      )}
                     </Box>
                     <Box sx={{ display: "flex", gap: 1 }}>
                       <Button size="small" onClick={() => copyLink(ch.id)} startIcon={copiedId === ch.id ? <Check size={12} /> : <Copy size={12} />}
@@ -226,18 +313,47 @@ export default function ChallengesPage() {
                         {copiedId === ch.id ? "Copiado" : "Partilhar"}
                       </Button>
                       <Button size="small" onClick={() => joinChallenge(ch.id)} startIcon={<Swords size={12} />}
-                        sx={{ color: "#e74c3c", fontSize: 11, textTransform: "none", minWidth: "auto", p: "4px 8px" }}>
+                        sx={{ color: ch.isCompleted ? "#888" : "#e74c3c", fontSize: 11, textTransform: "none", minWidth: "auto", p: "4px 8px" }}>
                         Jogar
                       </Button>
                     </Box>
                   </Box>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-                    {ch.score > 0 && (
+                    {(ch.targetScore || ch.targetWaves || ch.targetKills) ? (
+                      <>
+                        {ch.targetScore && (
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <Zap size={10} color="#ffd700" />
+                            <Typography sx={{ fontSize: 11, color: "#ffd700", fontWeight: 700 }}>{ch.targetScore.toLocaleString()}</Typography>
+                            <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>pts</Typography>
+                          </Box>
+                        )}
+                        {ch.targetWaves && (
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <BarChart2 size={10} color="#f39c12" />
+                            <Typography sx={{ fontSize: 11, color: "#f39c12", fontWeight: 700 }}>{ch.targetWaves}</Typography>
+                            <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>waves</Typography>
+                          </Box>
+                        )}
+                        {ch.targetKills && (
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <Crosshair size={10} color="#e74c3c" />
+                            <Typography sx={{ fontSize: 11, color: "#e74c3c", fontWeight: 700 }}>{ch.targetKills}</Typography>
+                            <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>kills</Typography>
+                          </Box>
+                        )}
+                      </>
+                    ) : ch.score > 0 && (
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                         <Trophy size={11} color="#ffd700" />
                         <Typography sx={{ fontSize: 11, color: "#ffd700", fontWeight: 700 }}>{ch.score.toLocaleString()}</Typography>
                         <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>· Wave {ch.wave} · {ch.kills} kills</Typography>
                       </Box>
+                    )}
+                    {ch.completedBy && (
+                      <Typography sx={{ fontSize: 10, color: "#2ecc71" }}>
+                        Completo por {ch.completedBy}
+                      </Typography>
                     )}
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, ml: "auto" }}>
                       <Clock size={11} color="rgba(255,255,255,0.3)" />

@@ -25,9 +25,13 @@ export async function GET(_req: Request, { params }: { params: { token: string }
         score: challenge.score,
         wave: challenge.wave,
         kills: challenge.kills,
+        targetScore: challenge.targetScore,
+        targetWaves: challenge.targetWaves,
+        targetKills: challenge.targetKills,
         createdAt: challenge.createdAt,
         expiresAt: challenge.expiresAt,
         status: challenge.status,
+        completedBy: challenge.completedBy,
       },
     });
   } catch {

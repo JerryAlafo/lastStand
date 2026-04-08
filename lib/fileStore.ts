@@ -110,9 +110,13 @@ export interface Challenge {
   score: number;
   wave: number;
   kills: number;
+  targetScore?: number;
+  targetWaves?: number;
+  targetKills?: number;
   createdAt: number;
   expiresAt: number;
   status: "active" | "completed" | "expired";
+  completedBy?: string;
 }
 
 export async function readChallenges(): Promise<Challenge[]> {

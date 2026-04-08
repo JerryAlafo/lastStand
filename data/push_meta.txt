@@ -1,2 +1,2 @@
 top1_global|Diller
-top1_weekly|Diller
+top1_weekly|jerry_teste

@@ -16,6 +16,7 @@ const AR = 18; // Legacy constant - no longer used for boundary checks
 export interface ChallengeProps {
   challengeMode: true;
   mapId: string;
+  challengeToken: string;
   seed: number;
   onGameOver: (score: number, wave: number, kills: number) => void;
 }
@@ -31,10 +32,15 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    if (!multiProps || !mounted) return;
-    const t = setTimeout(() => { storeRef.current.setRunning(true); }, 400);
-    return () => clearTimeout(t);
-  }, [mounted, multiProps]);
+    if (!mounted) return;
+    if (multiProps) {
+      const t = setTimeout(() => { storeRef.current.setRunning(true); }, 400);
+      return () => clearTimeout(t);
+    }
+    if (challengeProps?.challengeMode) {
+      storeRef.current.setRunning(true);
+    }
+  }, [mounted, multiProps, challengeProps]);
 
   useEffect(() => {
     if (!mounted || !mountRef.current) return;

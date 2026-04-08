@@ -17,6 +17,9 @@ import {
   Trophy,
   Magnet,
   CheckCircle2,
+  Target,
+  BarChart2,
+  Crosshair,
 } from "lucide-react";
 import { UPGRADE_POOL, hasUpgradesAvailable } from "@/lib/upgradeCards";
 import { MultiProps } from "@/lib/gameTypes";
@@ -43,16 +46,41 @@ function lerpRgba(night: number[], day: number[], t: number): string {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-export default function HUD({ multiProps, challengeProps }: { multiProps?: MultiProps; challengeProps?: ChallengeProps }) {
+export default function HUD({
+  multiProps,
+  challengeProps,
+}: {
+  multiProps?: MultiProps;
+  challengeProps?: ChallengeProps;
+}) {
   const router = useRouter();
   const { data: session } = useSession();
   const username = session?.user?.username ?? "";
   const initials = username ? username.slice(0, 2).toUpperCase() : "??";
   const {
-    hp, maxHp, score, kills, wave, xp, xpNext,
-    activeEffects, running, gameOver, waveMessage,
-    setRunning, reset, setWaveMessage,
-    upgrades, pendingUpgrade, applyUpgrade, setPendingUpgrade, selectedClass, setClass, blastCount, selectedMap, setMap,
+    hp,
+    maxHp,
+    score,
+    kills,
+    wave,
+    xp,
+    xpNext,
+    activeEffects,
+    running,
+    gameOver,
+    waveMessage,
+    setRunning,
+    reset,
+    setWaveMessage,
+    upgrades,
+    pendingUpgrade,
+    applyUpgrade,
+    setPendingUpgrade,
+    selectedClass,
+    setClass,
+    blastCount,
+    selectedMap,
+    setMap,
   } = useGameStore();
 
   // Track if game has ever been started (to distinguish pause from main menu)
@@ -61,14 +89,36 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
     if (running) setHasEverStarted(true);
   }, [running]);
 
+  // Fetch challenge info if in challenge mode
+  useEffect(() => {
+    if (!challengeProps?.challengeMode || !challengeProps?.challengeToken)
+      return;
+    fetch(
+      `/api/challenges/${encodeURIComponent(challengeProps.challengeToken)}`,
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.challenge)
+          setChallengeInfo({
+            targetScore: d.challenge.targetScore,
+            targetWaves: d.challenge.targetWaves,
+            targetKills: d.challenge.targetKills,
+          });
+      })
+      .catch(() => {});
+  }, [challengeProps]);
+
   function goToMenu() {
     if (multiProps) {
-      // In multiplayer, "menu" exits the room; GameScene unmount closes it via the close API
       router.push("/multiplayer");
       return;
     }
-    reset(); // sets running: true in store
-    setRunning(false); // immediately override to false → show main menu
+    if (challengeProps?.challengeMode) {
+      router.push("/challenges");
+      return;
+    }
+    reset();
+    setRunning(false);
     setHasEverStarted(false);
   }
 
@@ -91,9 +141,14 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
   // PVP pre-game countdown (3, 2, 1) exposed from GameScene via window.__pvpCountdown
   const [pvpCountdown, setPvpCountdown] = useState<number | null>(null);
   // PVP end-of-match result: "win" | "loss" | "abandoned" | null
-  const [pvpResult, setPvpResult] = useState<"win" | "loss" | "abandoned" | null>(null);
+  const [pvpResult, setPvpResult] = useState<
+    "win" | "loss" | "abandoned" | null
+  >(null);
   // Rematch vote state: which players clicked "Nova partida"
-  const [pvpRematch, setPvpRematch] = useState<{ host: boolean; guest: boolean } | null>(null);
+  const [pvpRematch, setPvpRematch] = useState<{
+    host: boolean;
+    guest: boolean;
+  } | null>(null);
   const dayRafRef = useRef<number>();
   const dayFrameRef = useRef(0);
   useEffect(() => {
@@ -115,7 +170,9 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
         setPvpCountdown(cd !== undefined ? cd : null);
         const res = w.__pvpResult as "win" | "loss" | "abandoned" | undefined;
         if (res) setPvpResult(res);
-        const rm = w.__pvpRematch as { host: boolean; guest: boolean } | undefined;
+        const rm = w.__pvpRematch as
+          | { host: boolean; guest: boolean }
+          | undefined;
         if (rm) {
           setPvpRematch({ ...rm });
           // Both voted → host triggers full reset via sync
@@ -145,17 +202,31 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
   }, [hp]);
 
   const [showSettings, setShowSettings] = useState(false);
-  const [wasRunningBeforeSettings, setWasRunningBeforeSettings] = useState(false);
+  const [wasRunningBeforeSettings, setWasRunningBeforeSettings] =
+    useState(false);
   const [cfg, setCfg] = useState(() => {
     if (typeof window === "undefined")
-      return { skin: "#c68642", shirt: "#4a90d9", shorts: "#1a2255", shoe: "#111111" };
+      return {
+        skin: "#c68642",
+        shirt: "#4a90d9",
+        shorts: "#1a2255",
+        shoe: "#111111",
+      };
     try {
       return {
-        skin: "#c68642", shirt: "#4a90d9", shorts: "#1a2255", shoe: "#111111",
+        skin: "#c68642",
+        shirt: "#4a90d9",
+        shorts: "#1a2255",
+        shoe: "#111111",
         ...JSON.parse(localStorage.getItem("lsa_player_settings") ?? "{}"),
       };
     } catch {
-      return { skin: "#c68642", shirt: "#4a90d9", shorts: "#1a2255", shoe: "#111111" };
+      return {
+        skin: "#c68642",
+        shirt: "#4a90d9",
+        shorts: "#1a2255",
+        shoe: "#111111",
+      };
     }
   });
 
@@ -175,9 +246,20 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
 
   const savedRef = useRef(false);
   const [best, setBest] = useState<number | null>(null);
+  const [challengeInfo, setChallengeInfo] = useState<{
+    targetScore?: number;
+    targetWaves?: number;
+    targetKills?: number;
+  } | null>(null);
 
   // Account level + achievements
-  const [levelInfo, setLevelInfo] = useState<{ level: number; title: string; color: string; xpProgress: number; xpNeeded: number } | null>(null);
+  const [levelInfo, setLevelInfo] = useState<{
+    level: number;
+    title: string;
+    color: string;
+    xpProgress: number;
+    xpNeeded: number;
+  } | null>(null);
   const [achievementToasts, setAchievementToasts] = useState<string[]>([]);
   const [upgradeToast, setUpgradeToast] = useState<string | null>(null);
   const upgradeToastTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -185,11 +267,14 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
   function handlePickUpgrade(id: string) {
     if (id) {
       applyUpgrade(id);
-      const card = UPGRADE_POOL.find(c => c.id === id);
+      const card = UPGRADE_POOL.find((c) => c.id === id);
       if (card) {
         setUpgradeToast(card.name);
         clearTimeout(upgradeToastTimer.current);
-        upgradeToastTimer.current = setTimeout(() => setUpgradeToast(null), 2500);
+        upgradeToastTimer.current = setTimeout(
+          () => setUpgradeToast(null),
+          3000,
+        );
       }
     }
     setPendingUpgrade(false);
@@ -204,8 +289,17 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
   useEffect(() => {
     if (!session?.user?.username) return;
     fetch("/api/user/level")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d) setLevelInfo({ level: d.level, title: getLevelTitle(d.level), color: getLevelColor(d.level), xpProgress: d.xpProgress, xpNeeded: d.xpNeeded }); })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d)
+          setLevelInfo({
+            level: d.level,
+            title: getLevelTitle(d.level),
+            color: getLevelColor(d.level),
+            xpProgress: d.xpProgress,
+            xpNeeded: d.xpNeeded,
+          });
+      })
       .catch(() => undefined);
   }, [session?.user?.username, gameOver]);
 
@@ -213,10 +307,13 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
   useEffect(() => {
     if (!session?.user?.username || selectedClass) return;
     fetch("/api/user/level")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.selectedClass) setClass(d.selectedClass as Parameters<typeof setClass>[0]); })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.selectedClass)
+          setClass(d.selectedClass as Parameters<typeof setClass>[0]);
+      })
       .catch(() => undefined);
-  // eslint-disable-next-line
+    // eslint-disable-next-line
   }, [session?.user?.username]);
 
   useEffect(() => {
@@ -231,7 +328,10 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
 
   useEffect(() => {
     if (!session?.user?.username) return;
-    if (!gameOver) { savedRef.current = false; return; }
+    if (!gameOver) {
+      savedRef.current = false;
+      return;
+    }
     if (savedRef.current) return;
     savedRef.current = true;
 
@@ -243,11 +343,16 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ score, wave, kills, blastCount }),
-    }).then(r => r.ok ? r.json() : null)
-      .then(d => {
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
         if (!d) return;
         if (d.newAchievements?.length > 0) {
-          const names = d.newAchievements.map((id: string) => ACHIEVEMENTS.find(a => a.id === id)?.name ?? id).filter(Boolean);
+          const names = d.newAchievements
+            .map(
+              (id: string) => ACHIEVEMENTS.find((a) => a.id === id)?.name ?? id,
+            )
+            .filter(Boolean);
           setAchievementToasts(names);
           setTimeout(() => setAchievementToasts([]), 5000);
         }
@@ -277,16 +382,21 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
         <div
           key={`flash-${Date.now()}`}
           style={{
-            position: "absolute", inset: 0, zIndex: 6, pointerEvents: "none",
-            background: hpFlash === "damage"
-              ? "radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(231,76,60,0.55) 100%)"
-              : "radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(46,204,113,0.4) 100%)",
+            position: "absolute",
+            inset: 0,
+            zIndex: 6,
+            pointerEvents: "none",
+            background:
+              hpFlash === "damage"
+                ? "radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(231,76,60,0.55) 100%)"
+                : "radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(46,204,113,0.4) 100%)",
             animation: "hpVignetteFade 0.5s ease-out forwards",
           }}
         />
       )}
       <style>{`
         @keyframes hpVignetteFade { 0% { opacity: 1; } 100% { opacity: 0; } }
+        @keyframes upgradeToastFade { 0% { opacity: 0; transform: translateX(-50%) translateY(-10px); } 10% { opacity: 1; transform: translateX(-50%) translateY(0); } 80% { opacity: 1; transform: translateX(-50%) translateY(0); } 100% { opacity: 0; transform: translateX(-50%) translateY(-5px); } }
         @keyframes cdPulse {
           0%   { transform: scale(1.6); opacity: 0; }
           25%  { opacity: 1; }
@@ -301,26 +411,45 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
 
       {/* ── PVP Countdown overlay ── */}
       {pvpCountdown !== null && (
-        <div style={{
-          position: "absolute", inset: 0, zIndex: 50, pointerEvents: "none",
-          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          background: "radial-gradient(ellipse at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 100%)",
-        }}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 50,
+            pointerEvents: "none",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            background:
+              "radial-gradient(ellipse at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 100%)",
+          }}
+        >
           <div
             key={pvpCountdown}
             style={{
-              fontSize: "clamp(90px, 22vw, 160px)", fontWeight: 900, color: "#fff",
-              fontFamily: "monospace", lineHeight: 1,
-              textShadow: "0 0 40px rgba(123,47,247,0.9), 0 0 100px rgba(123,47,247,0.5)",
+              fontSize: "clamp(90px, 22vw, 160px)",
+              fontWeight: 900,
+              color: "#fff",
+              fontFamily: "monospace",
+              lineHeight: 1,
+              textShadow:
+                "0 0 40px rgba(123,47,247,0.9), 0 0 100px rgba(123,47,247,0.5)",
               animation: "cdPulse 0.95s ease-out forwards",
             }}
           >
             {pvpCountdown}
           </div>
-          <div style={{
-            fontSize: "clamp(12px, 3vw, 18px)", letterSpacing: 4, color: "rgba(200,150,255,0.7)",
-            textTransform: "uppercase", fontFamily: "monospace", marginTop: 16,
-          }}>
+          <div
+            style={{
+              fontSize: "clamp(12px, 3vw, 18px)",
+              letterSpacing: 4,
+              color: "rgba(200,150,255,0.7)",
+              textTransform: "uppercase",
+              fontFamily: "monospace",
+              marginTop: 16,
+            }}
+          >
             PVP — Preparar…
           </div>
         </div>
@@ -328,35 +457,88 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
 
       {/* ── Wave upgrade card picker ── */}
       {pendingUpgrade && !gameOver && hasUpgradesAvailable(upgrades) && (
-        <UpgradeModal wave={wave} upgrades={upgrades} onPick={handlePickUpgrade} onSkip={() => setPendingUpgrade(false)} />
+        <UpgradeModal
+          wave={wave}
+          upgrades={upgrades}
+          onPick={handlePickUpgrade}
+          onSkip={() => setPendingUpgrade(false)}
+        />
       )}
 
       {/* ── Upgrade selected toast ── */}
       {upgradeToast && (
-        <div style={{
-          position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)",
-          zIndex: 30, background: "rgba(123,47,247,0.18)", border: "1px solid rgba(123,47,247,0.5)",
-          borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 700,
-          color: "#aa55ff", fontFamily: "monospace", backdropFilter: "blur(8px)",
-          animation: "hpVignetteFade 2.5s ease-out forwards", pointerEvents: "none",
-          whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 8,
-        }}>
-          <CheckCircle2 size={14} color="#aa55ff" />
-          Upgrade: {upgradeToast}
+        <div
+          style={{
+            position: "absolute",
+            top: 70,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 30,
+            background: "rgba(15,5,35,0.95)",
+            border: "1px solid rgba(170,85,255,0.7)",
+            borderRadius: 10,
+            padding: "12px 24px",
+            fontSize: 14,
+            fontWeight: 700,
+            color: "#e0c0ff",
+            fontFamily: "monospace",
+            backdropFilter: "blur(12px)",
+            boxShadow:
+              "0 0 30px rgba(123,47,247,0.5), 0 4px 20px rgba(0,0,0,0.5)",
+            animation: "upgradeToastFade 3s ease-in-out forwards",
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <CheckCircle2 size={16} color="#2ecc71" />
+          <span style={{ color: "#fff" }}>Upgrade:</span> {upgradeToast}
         </div>
       )}
 
       {/* ── Achievement toasts ── */}
       {achievementToasts.length > 0 && (
-        <div style={{ position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)", zIndex: 30, display: "flex", flexDirection: "column", gap: 8, alignItems: "center", pointerEvents: "none" }}>
+        <div
+          style={{
+            position: "absolute",
+            top: 70,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 30,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            alignItems: "center",
+            pointerEvents: "none",
+          }}
+        >
           {achievementToasts.map((name, i) => (
-            <div key={i} style={{
-              background: "rgba(255,180,0,0.15)", border: "1px solid rgba(255,180,0,0.4)",
-              borderRadius: 10, padding: "8px 18px", fontSize: 13, fontWeight: 700,
-              color: "#ffd700", fontFamily: "monospace", backdropFilter: "blur(8px)",
-              animation: "hpVignetteFade 5s ease-out forwards",
-            }}>
-              <Trophy size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }} />Conquista: {name}
+            <div
+              key={i}
+              style={{
+                background: "rgba(255,180,0,0.15)",
+                border: "1px solid rgba(255,180,0,0.4)",
+                borderRadius: 10,
+                padding: "8px 18px",
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#ffd700",
+                fontFamily: "monospace",
+                backdropFilter: "blur(8px)",
+                animation: "hpVignetteFade 5s ease-out forwards",
+              }}
+            >
+              <Trophy
+                size={12}
+                style={{
+                  display: "inline",
+                  verticalAlign: "middle",
+                  marginRight: 6,
+                }}
+              />
+              Conquista: {name}
             </div>
           ))}
         </div>
@@ -389,12 +571,159 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
         cardBorder={cardBorder}
       />
 
+      {/* ── Challenge Objectives Panel ── */}
+      {challengeProps?.challengeMode && challengeInfo && (
+        <div
+          style={{
+            position: "absolute",
+            top: isMobile ? 70 : 58,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(0,0,0,0.75)",
+            backdropFilter: "blur(8px)",
+            border: "1px solid rgba(255,165,0,0.4)",
+            borderRadius: 8,
+            padding: isMobile ? "8px 12px" : "10px 20px",
+            display: "flex",
+            gap: isMobile ? 2 : 3,
+            alignItems: "center",
+            zIndex: 15,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              marginRight: isMobile ? 0 : 4,
+            }}
+          >
+            <Target size={14} color="#ffa500" />
+            <span
+              style={{
+                fontSize: isMobile ? 9 : 10,
+                color: "rgba(255,255,255,0.5)",
+                fontFamily: "monospace",
+                letterSpacing: 1,
+              }}
+            >
+              DESAFIO
+            </span>
+          </div>
+          {challengeInfo.targetScore && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "2px 8px",
+                borderRadius: 4,
+                background:
+                  score >= challengeInfo.targetScore
+                    ? "rgba(46,204,113,0.3)"
+                    : "rgba(255,215,0,0.15)",
+              }}
+            >
+              <Zap
+                size={12}
+                color={
+                  score >= challengeInfo.targetScore ? "#2ecc71" : "#ffd700"
+                }
+              />
+              <span
+                style={{
+                  fontSize: isMobile ? 11 : 12,
+                  fontWeight: 700,
+                  color:
+                    score >= challengeInfo.targetScore ? "#2ecc71" : "#ffd700",
+                  fontFamily: "monospace",
+                }}
+              >
+                {score.toLocaleString()}/
+                {challengeInfo.targetScore.toLocaleString()}
+              </span>
+            </div>
+          )}
+          {challengeInfo.targetWaves && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "2px 8px",
+                borderRadius: 4,
+                background:
+                  wave >= challengeInfo.targetWaves
+                    ? "rgba(46,204,113,0.3)"
+                    : "rgba(243,156,18,0.15)",
+              }}
+            >
+              <BarChart2
+                size={12}
+                color={
+                  wave >= challengeInfo.targetWaves ? "#2ecc71" : "#f39c12"
+                }
+              />
+              <span
+                style={{
+                  fontSize: isMobile ? 11 : 12,
+                  fontWeight: 700,
+                  color:
+                    wave >= challengeInfo.targetWaves ? "#2ecc71" : "#f39c12",
+                  fontFamily: "monospace",
+                }}
+              >
+                {wave}/{challengeInfo.targetWaves}
+              </span>
+            </div>
+          )}
+          {challengeInfo.targetKills && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "2px 8px",
+                borderRadius: 4,
+                background:
+                  kills >= challengeInfo.targetKills
+                    ? "rgba(46,204,113,0.3)"
+                    : "rgba(231,76,60,0.15)",
+              }}
+            >
+              <Crosshair
+                size={12}
+                color={
+                  kills >= challengeInfo.targetKills ? "#2ecc71" : "#e74c3c"
+                }
+              />
+              <span
+                style={{
+                  fontSize: isMobile ? 11 : 12,
+                  fontWeight: 700,
+                  color:
+                    kills >= challengeInfo.targetKills ? "#2ecc71" : "#e74c3c",
+                  fontFamily: "monospace",
+                }}
+              >
+                {kills}/{challengeInfo.targetKills}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Pause / Logout buttons — desktop only, during active gameplay ── */}
       <Box
         sx={{
-          position: "absolute", top: 10, right: 16,
+          position: "absolute",
+          top: 10,
+          right: 16,
           display: !isMobile && running ? "flex" : "none",
-          gap: 1, zIndex: 20, flexWrap: "wrap", justifyContent: "flex-end",
+          gap: 1,
+          zIndex: 20,
+          flexWrap: "wrap",
+          justifyContent: "flex-end",
         }}
       >
         <Button
@@ -402,9 +731,16 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
           variant="contained"
           startIcon={running ? <Pause size={14} /> : <Play size={14} />}
           sx={{
-            bgcolor: running ? "rgba(243,156,18,0.85)" : "rgba(46,204,113,0.85)",
-            backdropFilter: "blur(6px)", color: "#fff", fontSize: 11, fontWeight: 700,
-            fontFamily: "monospace", textTransform: "none", borderRadius: 2,
+            bgcolor: running
+              ? "rgba(243,156,18,0.85)"
+              : "rgba(46,204,113,0.85)",
+            backdropFilter: "blur(6px)",
+            color: "#fff",
+            fontSize: 11,
+            fontWeight: 700,
+            fontFamily: "monospace",
+            textTransform: "none",
+            borderRadius: 2,
             "&:hover": { bgcolor: running ? "#e67e22" : "#27ae60" },
           }}
         >
@@ -412,12 +748,22 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
         </Button>
 
         <Button
-          onClick={() => { setWasRunningBeforeSettings(running); setShowSettings(true); setRunning(false); }}
+          onClick={() => {
+            setWasRunningBeforeSettings(running);
+            setShowSettings(true);
+            setRunning(false);
+          }}
           variant="contained"
           startIcon={<Settings size={14} />}
           sx={{
-            bgcolor: "rgba(100,100,120,0.75)", backdropFilter: "blur(6px)", color: "#fff",
-            fontSize: 11, fontWeight: 700, fontFamily: "monospace", textTransform: "none", borderRadius: 2,
+            bgcolor: "rgba(100,100,120,0.75)",
+            backdropFilter: "blur(6px)",
+            color: "#fff",
+            fontSize: 11,
+            fontWeight: 700,
+            fontFamily: "monospace",
+            textTransform: "none",
+            borderRadius: 2,
             "&:hover": { bgcolor: "rgba(130,130,160,0.85)" },
           }}
         >
@@ -430,8 +776,14 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
             variant="contained"
             startIcon={<LogOut size={14} />}
             sx={{
-              bgcolor: "rgba(231,76,60,0.88)", backdropFilter: "blur(6px)", color: "#fff",
-              fontSize: 11, fontWeight: 700, fontFamily: "monospace", textTransform: "none", borderRadius: 2,
+              bgcolor: "rgba(231,76,60,0.88)",
+              backdropFilter: "blur(6px)",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 700,
+              fontFamily: "monospace",
+              textTransform: "none",
+              borderRadius: 2,
               "&:hover": { bgcolor: "#c0392b" },
             }}
           >
@@ -448,8 +800,14 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
             variant="contained"
             startIcon={<LogOut size={14} />}
             sx={{
-              bgcolor: "rgba(231,76,60,0.82)", backdropFilter: "blur(6px)", color: "#fff",
-              fontSize: 11, fontWeight: 700, fontFamily: "monospace", textTransform: "none", borderRadius: 2,
+              bgcolor: "rgba(231,76,60,0.82)",
+              backdropFilter: "blur(6px)",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 700,
+              fontFamily: "monospace",
+              textTransform: "none",
+              borderRadius: 2,
               "&:hover": { bgcolor: "#c0392b" },
             }}
           >
@@ -462,28 +820,51 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
       {session?.user?.username && !isMobile && (
         <div
           style={{
-            position: "absolute", top: 62, right: 16, width: 240,
-            background: cardBg, border: `1px solid ${cardBorder}`,
-            borderRadius: 14, padding: "12px 14px", fontFamily: "monospace",
-            backdropFilter: "blur(10px)", transition: "background 1s ease, border-color 1s ease",
+            position: "absolute",
+            top: 62,
+            right: 16,
+            width: 240,
+            background: cardBg,
+            border: `1px solid ${cardBorder}`,
+            borderRadius: 14,
+            padding: "12px 14px",
+            fontFamily: "monospace",
+            backdropFilter: "blur(10px)",
+            transition: "background 1s ease, border-color 1s ease",
           }}
         >
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <Avatar
               sx={{
-                width: 38, height: 38,
-                bgcolor: t > 0.5 ? "rgba(0,80,200,0.25)" : "rgba(0,229,255,0.18)",
+                width: 38,
+                height: 38,
+                bgcolor:
+                  t > 0.5 ? "rgba(0,80,200,0.25)" : "rgba(0,229,255,0.18)",
                 border: `1px solid ${t > 0.5 ? "rgba(0,100,255,0.4)" : "rgba(0,229,255,0.35)"}`,
-                color: textPrimary, fontWeight: 800, fontSize: 14, transition: "all 1s",
+                color: textPrimary,
+                fontWeight: 800,
+                fontSize: 14,
+                transition: "all 1s",
               }}
             >
               {initials}
             </Avatar>
             <div style={{ minWidth: 0 }}>
-              <Typography variant="body2" sx={{ fontWeight: 800, color: textPrimary, lineHeight: 1.1, transition: "color 1s" }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 800,
+                  color: textPrimary,
+                  lineHeight: 1.1,
+                  transition: "color 1s",
+                }}
+              >
                 {username}
               </Typography>
-              <Typography variant="caption" sx={{ color: textSecondary, transition: "color 1s" }}>
+              <Typography
+                variant="caption"
+                sx={{ color: textSecondary, transition: "color 1s" }}
+              >
                 desde{" "}
                 {session.user.createdAt
                   ? new Date(session.user.createdAt).toLocaleDateString()
@@ -494,12 +875,32 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
 
           <div style={{ marginTop: 10, display: "grid", gap: 5 }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 11, color: textSecondary, transition: "color 1s" }}>Melhor</span>
-              <span style={{ fontSize: 11, fontWeight: 800, color: "#7b2ff7" }}>{best ?? "—"}</span>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: textSecondary,
+                  transition: "color 1s",
+                }}
+              >
+                Melhor
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: "#7b2ff7" }}>
+                {best ?? "—"}
+              </span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 11, color: textSecondary, transition: "color 1s" }}>Kills (sessão)</span>
-              <span style={{ fontSize: 11, fontWeight: 800, color: "#e74c3c" }}>{kills}</span>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: textSecondary,
+                  transition: "color 1s",
+                }}
+              >
+                Kills (sessão)
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: "#e74c3c" }}>
+                {kills}
+              </span>
             </div>
           </div>
         </div>
@@ -507,10 +908,21 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
 
       {/* ── XP bar (only during active gameplay) ── */}
       {running && !gameOver && (
-        <div style={{ position: "absolute", top: 50, left: 16, right: 16, height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 2 }}>
+        <div
+          style={{
+            position: "absolute",
+            top: 50,
+            left: 16,
+            right: 16,
+            height: 3,
+            background: "rgba(255,255,255,0.08)",
+            borderRadius: 2,
+          }}
+        >
           <div
             style={{
-              height: "100%", borderRadius: 2,
+              height: "100%",
+              borderRadius: 2,
               background: "linear-gradient(90deg, #7b2ff7, #00c3ff)",
               width: `${Math.min(100, (xp / xpNext) * 100).toFixed(0)}%`,
               transition: "width 0.2s",
@@ -521,16 +933,31 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
       )}
 
       {/* ── Active effects ── */}
-      <div style={{ position: "absolute", top: 60, left: 16, display: "flex", gap: 5 }}>
+      <div
+        style={{
+          position: "absolute",
+          top: 60,
+          left: 16,
+          display: "flex",
+          gap: 5,
+        }}
+      >
         {Object.entries(activeEffects).map(([k, v]) =>
           effectIcons[k] && (v || 0) > 0 ? (
             <div
               key={k}
               style={{
-                background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
-                color: "#fff", fontSize: 11, padding: "2px 8px", borderRadius: 4,
-                border: "0.5px solid rgba(255,255,255,0.2)", fontFamily: "monospace",
-                display: "flex", alignItems: "center", gap: 4,
+                background: "rgba(0,0,0,0.55)",
+                backdropFilter: "blur(4px)",
+                color: "#fff",
+                fontSize: 11,
+                padding: "2px 8px",
+                borderRadius: 4,
+                border: "0.5px solid rgba(255,255,255,0.2)",
+                fontFamily: "monospace",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
               }}
             >
               {effectIcons[k]} {Math.ceil((v || 0) / 60)}s
@@ -538,12 +965,21 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
           ) : null,
         )}
         {(upgrades as string[]).includes("magnet") && (
-          <div style={{
-            background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
-            color: "#aa55ff", fontSize: 11, padding: "2px 8px", borderRadius: 4,
-            border: "0.5px solid rgba(123,47,247,0.4)", fontFamily: "monospace",
-            display: "flex", alignItems: "center", gap: 4,
-          }}>
+          <div
+            style={{
+              background: "rgba(0,0,0,0.55)",
+              backdropFilter: "blur(4px)",
+              color: "#aa55ff",
+              fontSize: 11,
+              padding: "2px 8px",
+              borderRadius: 4,
+              border: "0.5px solid rgba(123,47,247,0.4)",
+              fontFamily: "monospace",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
             <Magnet size={12} color="#aa55ff" /> Ímã
           </div>
         )}
@@ -553,9 +989,17 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
       {waveMessage && (
         <div
           style={{
-            position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-            color: "#f39c12", fontSize: 30, fontWeight: 700, fontFamily: "monospace",
-            textShadow: "0 0 20px #f39c12", pointerEvents: "none", whiteSpace: "nowrap",
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            color: "#f39c12",
+            fontSize: 30,
+            fontWeight: 700,
+            fontFamily: "monospace",
+            textShadow: "0 0 20px #f39c12",
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
           }}
         >
           {waveMessage}
@@ -563,31 +1007,76 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
       )}
 
       {/* ── Ultimate ability button (desktop only) ── */}
-      <UltimateButton ultCharge={ultCharge} ultReady={ultReady} ultActive={ultActive} isMobile={isMobile} />
+      <UltimateButton
+        ultCharge={ultCharge}
+        ultReady={ultReady}
+        ultActive={ultActive}
+        isMobile={isMobile}
+      />
 
-      {/* ── Daily missions panel (shown during active gameplay) ── */}
-      {running && !gameOver && !isMobile && <DailyMissionsPanel />}
-
-      {/* ── Level badge (bottom-left, during gameplay) ── */}
-      {running && !gameOver && levelInfo && !isMobile && (
-        <div style={{
-          position: "absolute", bottom: 40, left: 16, fontFamily: "monospace",
-          background: "rgba(10,5,25,0.8)", border: `1px solid ${levelInfo.color}44`,
-          borderRadius: 10, padding: "6px 12px", backdropFilter: "blur(8px)",
-        }}>
-          <div style={{ fontSize: 10, color: levelInfo.color, fontWeight: 700, letterSpacing: 1 }}>
-            Nv.{levelInfo.level} · {levelInfo.title}
-          </div>
-          <div style={{ height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 2, marginTop: 3, width: 100 }}>
-            <div style={{ height: "100%", borderRadius: 2, background: levelInfo.color, width: `${Math.min(100, (levelInfo.xpProgress / levelInfo.xpNeeded) * 100)}%`, transition: "width 0.3s" }} />
-          </div>
-        </div>
+      {/* ── Daily missions panel (hidden in challenge mode) ── */}
+      {running && !gameOver && !isMobile && !challengeProps?.challengeMode && (
+        <DailyMissionsPanel />
       )}
+
+      {/* ── Level badge (bottom-left, during gameplay, hidden in challenge mode) ── */}
+      {running &&
+        !gameOver &&
+        levelInfo &&
+        !isMobile &&
+        !challengeProps?.challengeMode && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 40,
+              left: 16,
+              fontFamily: "monospace",
+              background: "rgba(10,5,25,0.8)",
+              border: `1px solid ${levelInfo.color}44`,
+              borderRadius: 10,
+              padding: "6px 12px",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 10,
+                color: levelInfo.color,
+                fontWeight: 700,
+                letterSpacing: 1,
+              }}
+            >
+              Nv.{levelInfo.level} · {levelInfo.title}
+            </div>
+            <div
+              style={{
+                height: 3,
+                background: "rgba(255,255,255,0.08)",
+                borderRadius: 2,
+                marginTop: 3,
+                width: 100,
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  borderRadius: 2,
+                  background: levelInfo.color,
+                  width: `${Math.min(100, (levelInfo.xpProgress / levelInfo.xpNeeded) * 100)}%`,
+                  transition: "width 0.3s",
+                }}
+              />
+            </div>
+          </div>
+        )}
 
       {/* ── Settings modal ── */}
       <SettingsModal
         open={showSettings}
-        onClose={() => { setShowSettings(false); if (wasRunningBeforeSettings) setRunning(true); }}
+        onClose={() => {
+          setShowSettings(false);
+          if (wasRunningBeforeSettings) setRunning(true);
+        }}
         cfg={cfg}
         onSave={saveSettings}
         username={username}
@@ -596,17 +1085,27 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
       {/* ── Controls hint ── */}
       <div
         style={{
-          position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)",
-          display: "flex", gap: 8, pointerEvents: "none",
+          position: "absolute",
+          bottom: 12,
+          left: "50%",
+          transform: "translateX(-50%)",
+          display: "flex",
+          gap: 8,
+          pointerEvents: "none",
         }}
       >
         {["WASD mover", "ataque auto", "Q dash", "E fúria"].map((h) => (
           <span
             key={h}
             style={{
-              background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
-              color: "rgba(255,255,255,0.5)", fontSize: 10, padding: "3px 9px",
-              borderRadius: 4, border: "0.5px solid rgba(255,255,255,0.15)", fontFamily: "monospace",
+              background: "rgba(0,0,0,0.55)",
+              backdropFilter: "blur(4px)",
+              color: "rgba(255,255,255,0.5)",
+              fontSize: 10,
+              padding: "3px 9px",
+              borderRadius: 4,
+              border: "0.5px solid rgba(255,255,255,0.15)",
+              fontFamily: "monospace",
             }}
           >
             {h}
@@ -614,54 +1113,82 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
         ))}
       </div>
 
-      {/* ── Pause modal ── */}
-      {!running && !gameOver && hasEverStarted && (
-        <PauseModal
-          wave={wave}
-          score={score}
-          kills={kills}
-          isMobile={isMobile}
-          session={session}
-          best={best}
-          initials={initials}
-          username={username}
-          onResume={() => setRunning(true)}
-          onSettings={() => { setWasRunningBeforeSettings(running); setShowSettings(true); }}
-          goToMenu={goToMenu}
-        />
-      )}
+      {/* ── Pause modal (hidden in challenge mode) ── */}
+      {!running &&
+        !gameOver &&
+        hasEverStarted &&
+        !challengeProps?.challengeMode && (
+          <PauseModal
+            wave={wave}
+            score={score}
+            kills={kills}
+            isMobile={isMobile}
+            session={session}
+            best={best}
+            initials={initials}
+            username={username}
+            onResume={() => setRunning(true)}
+            onSettings={() => {
+              setWasRunningBeforeSettings(running);
+              setShowSettings(true);
+            }}
+            goToMenu={goToMenu}
+          />
+        )}
 
-      {/* ── Main menu / Start overlay ── */}
-      {!running && !gameOver && !hasEverStarted && (
-        <MainMenuOverlay
-          session={session}
-          isMobile={isMobile}
-          dayTime={dayTime}
-          kills={kills}
-          best={best}
-          score={score}
-          selectedMap={selectedMap}
-          onStart={(mapId) => { setMap(mapId); window.dispatchEvent(new CustomEvent("gameRestart")); reset(); }}
-          onSettings={() => { setWasRunningBeforeSettings(running); setShowSettings(true); }}
-          router={router}
-          multiProps={multiProps}
-          levelInfo={levelInfo ? { ...levelInfo, selectedClass: selectedClass } : null}
-          onClassChange={async (cls) => {
-            const res = await fetch("/api/user/level", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ selectedClass: cls }) });
-            if (res.ok) { setClass(cls as Parameters<typeof setClass>[0]); setLevelInfo(li => li ? { ...li, selectedClass: cls } : li); }
-          }}
-        />
-      )}
+      {/* ── Main menu / Start overlay (hidden in challenge mode) ── */}
+      {!running &&
+        !gameOver &&
+        !hasEverStarted &&
+        !challengeProps?.challengeMode && (
+          <MainMenuOverlay
+            session={session}
+            isMobile={isMobile}
+            dayTime={dayTime}
+            kills={kills}
+            best={best}
+            score={score}
+            selectedMap={selectedMap}
+            onStart={(mapId) => {
+              setMap(mapId);
+              window.dispatchEvent(new CustomEvent("gameRestart"));
+              reset();
+            }}
+            onSettings={() => {
+              setWasRunningBeforeSettings(running);
+              setShowSettings(true);
+            }}
+            router={router}
+            multiProps={multiProps}
+            levelInfo={
+              levelInfo ? { ...levelInfo, selectedClass: selectedClass } : null
+            }
+            onClassChange={async (cls) => {
+              const res = await fetch("/api/user/level", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ selectedClass: cls }),
+              });
+              if (res.ok) {
+                setClass(cls as Parameters<typeof setClass>[0]);
+                setLevelInfo((li) => (li ? { ...li, selectedClass: cls } : li));
+              }
+            }}
+          />
+        )}
 
-      {/* ── Game Over (solo / co-op; suppressed in PVP when pvpResult modal handles it) ── */}
-      {gameOver && !pvpResult && (
+      {/* ── Game Over (solo / co-op; suppressed in PVP and Challenge mode) ── */}
+      {gameOver && !pvpResult && !challengeProps?.challengeMode && (
         <GameOverScreen
           score={score}
           wave={wave}
           kills={kills}
           best={best}
           isMobile={isMobile}
-          onPlayAgain={() => { window.dispatchEvent(new CustomEvent("gameRestart")); reset(); }}
+          onPlayAgain={() => {
+            window.dispatchEvent(new CustomEvent("gameRestart"));
+            reset();
+          }}
           onMenu={goToMenu}
           router={router}
         />
@@ -670,13 +1197,25 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
       {/* ── Abandonar button — mobile multiplayer ── */}
       {isMobile && running && !gameOver && multiProps && (
         <button
-          onTouchStart={(e) => { e.preventDefault(); router.push("/multiplayer"); }}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            router.push("/multiplayer");
+          }}
           style={{
-            position: "absolute", top: 14, left: 14, zIndex: 20,
-            width: 44, height: 44, borderRadius: "50%",
-            background: "rgba(231,76,60,0.82)", border: "1px solid rgba(255,80,80,0.4)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", backdropFilter: "blur(6px)",
+            position: "absolute",
+            top: 14,
+            left: 14,
+            zIndex: 20,
+            width: 44,
+            height: 44,
+            borderRadius: "50%",
+            background: "rgba(231,76,60,0.82)",
+            border: "1px solid rgba(255,80,80,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            backdropFilter: "blur(6px)",
           }}
         >
           <LogOut size={18} color="#fff" />
@@ -699,7 +1238,9 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
             const k = w.__keys as Record<string, boolean> | undefined;
             if (k) {
               k["KeyQ"] = true;
-              setTimeout(() => { k["KeyQ"] = false; }, 80);
+              setTimeout(() => {
+                k["KeyQ"] = false;
+              }, 80);
             }
           }}
           onPause={() => {
