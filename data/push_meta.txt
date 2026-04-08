@@ -1,2 +1,2 @@
-top1_global|Diller
+top1_global|THE_K3Y
 top1_weekly|THE_K3Y
