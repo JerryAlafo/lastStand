@@ -143,3 +143,4 @@ Skullie|level_10|1775656309772
 nenerothetrash|level_10|1775656603255
 nenerothetrash|blast_5|1775656603255
 THE_K3Y|blast_5|1775656732936
+THE_K3Y|kills_5000|1775657069593
