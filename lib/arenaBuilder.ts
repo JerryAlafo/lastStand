@@ -448,5 +448,167 @@ export function buildArena(scene: THREE.Scene, isMobile: boolean, mapId = "arena
     };
   }
 
+  if (mapId === "jungle") {
+    // Floating leaves and fireflies
+    const leafCount = isWeak ? 25 : 60;
+    const leafPositions = new Float32Array(leafCount * 3);
+    const leafVelocities: { x: number; y: number; z: number; rot: number }[] = [];
+    for (let i = 0; i < leafCount; i++) {
+      leafPositions[i * 3] = (Math.random() - 0.5) * AR * 2;
+      leafPositions[i * 3 + 1] = Math.random() * 5 + 1;
+      leafPositions[i * 3 + 2] = (Math.random() - 0.5) * AR * 2;
+      leafVelocities.push({
+        x: (Math.random() - 0.5) * 0.03,
+        y: -0.01 - Math.random() * 0.015,
+        z: (Math.random() - 0.5) * 0.03,
+        rot: Math.random() * Math.PI * 2,
+      });
+    }
+    const leafGeo = new THREE.BufferGeometry();
+    leafGeo.setAttribute("position", new THREE.BufferAttribute(leafPositions, 3));
+    const leafMat = new THREE.PointsMaterial({
+      color: 0x3a8a2a,
+      size: isWeak ? 0.2 : 0.15,
+      transparent: true,
+      opacity: 0.7,
+      depthWrite: false,
+    });
+    const leafParticles = new THREE.Points(leafGeo, leafMat);
+    scene.add(leafParticles);
+
+    // Fireflies
+    const fireflyCount = isWeak ? 15 : 35;
+    const fireflyPositions = new Float32Array(fireflyCount * 3);
+    const fireflyData: { x: number; y: number; z: number; phase: number; speed: number }[] = [];
+    for (let i = 0; i < fireflyCount; i++) {
+      fireflyPositions[i * 3] = (Math.random() - 0.5) * AR * 1.5;
+      fireflyPositions[i * 3 + 1] = Math.random() * 4 + 0.5;
+      fireflyPositions[i * 3 + 2] = (Math.random() - 0.5) * AR * 1.5;
+      fireflyData.push({
+        x: (Math.random() - 0.5) * 0.02,
+        y: (Math.random() - 0.5) * 0.015,
+        z: (Math.random() - 0.5) * 0.02,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.5 + Math.random() * 0.5,
+      });
+    }
+    const fireflyGeo = new THREE.BufferGeometry();
+    fireflyGeo.setAttribute("position", new THREE.BufferAttribute(fireflyPositions, 3));
+    const fireflyMat = new THREE.PointsMaterial({
+      color: 0x88ff44,
+      size: isWeak ? 0.18 : 0.12,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const fireflyParticles = new THREE.Points(fireflyGeo, fireflyMat);
+    scene.add(fireflyParticles);
+
+    const updateInterval = isWeak ? 3 : 1;
+    mapEffects = {
+      update: (frame: number) => {
+        if (frame % updateInterval !== 0) return;
+        const lPos = leafGeo.attributes.position.array as Float32Array;
+        for (let i = 0; i < leafCount; i++) {
+          lPos[i * 3] += leafVelocities[i].x + Math.sin(frame * 0.02 + leafVelocities[i].rot) * 0.015;
+          lPos[i * 3 + 1] += leafVelocities[i].y;
+          lPos[i * 3 + 2] += leafVelocities[i].z + Math.cos(frame * 0.02 + leafVelocities[i].rot) * 0.015;
+          if (lPos[i * 3 + 1] < 0.3 || lPos[i * 3] > AR || lPos[i * 3] < -AR || lPos[i * 3 + 2] > AR || lPos[i * 3 + 2] < -AR) {
+            lPos[i * 3] = (Math.random() - 0.5) * AR * 2;
+            lPos[i * 3 + 1] = 5 + Math.random() * 2;
+            lPos[i * 3 + 2] = (Math.random() - 0.5) * AR * 2;
+          }
+        }
+        leafGeo.attributes.position.needsUpdate = true;
+
+        const fPos = fireflyGeo.attributes.position.array as Float32Array;
+        for (let i = 0; i < fireflyCount; i++) {
+          fPos[i * 3] += fireflyData[i].x + Math.sin(frame * 0.01 * fireflyData[i].speed + fireflyData[i].phase) * 0.03;
+          fPos[i * 3 + 1] += fireflyData[i].y + Math.cos(frame * 0.015 * fireflyData[i].speed + fireflyData[i].phase) * 0.02;
+          fPos[i * 3 + 2] += fireflyData[i].z + Math.sin(frame * 0.012 * fireflyData[i].speed + fireflyData[i].phase * 1.3) * 0.03;
+          if (fPos[i * 3] > AR) fPos[i * 3] = -AR;
+          if (fPos[i * 3] < -AR) fPos[i * 3] = AR;
+          if (fPos[i * 3 + 1] > 5) fPos[i * 3 + 1] = 0.5;
+          if (fPos[i * 3 + 1] < 0.5) fPos[i * 3 + 1] = 5;
+          if (fPos[i * 3 + 2] > AR) fPos[i * 3 + 2] = -AR;
+          if (fPos[i * 3 + 2] < -AR) fPos[i * 3 + 2] = AR;
+        }
+        fireflyGeo.attributes.position.needsUpdate = true;
+      },
+    };
+  }
+
+  if (mapId === "void") {
+    // Dark void particles / cosmic dust
+    const voidCount = isWeak ? 40 : 100;
+    const voidPositions = new Float32Array(voidCount * 3);
+    const voidData: { x: number; y: number; z: number; phase: number; speed: number }[] = [];
+    for (let i = 0; i < voidCount; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const r = Math.random() * AR;
+      voidPositions[i * 3] = Math.cos(angle) * r;
+      voidPositions[i * 3 + 1] = Math.random() * 6 + 0.5;
+      voidPositions[i * 3 + 2] = Math.sin(angle) * r;
+      voidData.push({
+        x: (Math.random() - 0.5) * 0.01,
+        y: (Math.random() - 0.5) * 0.008,
+        z: (Math.random() - 0.5) * 0.01,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.3 + Math.random() * 0.4,
+      });
+    }
+    const voidGeo = new THREE.BufferGeometry();
+    voidGeo.setAttribute("position", new THREE.BufferAttribute(voidPositions, 3));
+    const voidMat = new THREE.PointsMaterial({
+      color: 0x6600cc,
+      size: isWeak ? 0.25 : 0.18,
+      transparent: true,
+      opacity: 0.6,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const voidParticles = new THREE.Points(voidGeo, voidMat);
+    scene.add(voidParticles);
+
+    // Void orbs (glowing dark spheres)
+    if (!isWeak) {
+      const orbMat = new THREE.MeshStandardMaterial({
+        color: 0x330066,
+        emissive: 0x8800ff,
+        emissiveIntensity: 0.5,
+        transparent: true,
+        opacity: 0.4,
+      });
+      for (let i = 0; i < 8; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = 3 + Math.random() * (AR - 5);
+        const orb = new THREE.Mesh(new THREE.SphereGeometry(0.3 + Math.random() * 0.4, 8, 8), orbMat);
+        orb.position.set(Math.cos(angle) * r, 1 + Math.random() * 3, Math.sin(angle) * r);
+        scene.add(orb);
+      }
+    }
+
+    const updateInterval = isWeak ? 3 : 1;
+    mapEffects = {
+      update: (frame: number) => {
+        if (frame % updateInterval !== 0) return;
+        const pos = voidGeo.attributes.position.array as Float32Array;
+        for (let i = 0; i < voidCount; i++) {
+          pos[i * 3] += voidData[i].x + Math.sin(frame * 0.008 * voidData[i].speed + voidData[i].phase) * 0.025;
+          pos[i * 3 + 1] += voidData[i].y + Math.cos(frame * 0.01 * voidData[i].speed + voidData[i].phase) * 0.02;
+          pos[i * 3 + 2] += voidData[i].z + Math.sin(frame * 0.009 * voidData[i].speed + voidData[i].phase * 0.7) * 0.025;
+          if (pos[i * 3] > AR) pos[i * 3] = -AR;
+          if (pos[i * 3] < -AR) pos[i * 3] = AR;
+          if (pos[i * 3 + 1] > 7) pos[i * 3 + 1] = 0.5;
+          if (pos[i * 3 + 1] < 0.5) pos[i * 3 + 1] = 7;
+          if (pos[i * 3 + 2] > AR) pos[i * 3 + 2] = -AR;
+          if (pos[i * 3 + 2] < -AR) pos[i * 3 + 2] = AR;
+        }
+        voidGeo.attributes.position.needsUpdate = true;
+      },
+    };
+  }
+
   return { camera, ambientLight, sun, arenaLight, ring, clouds, cloudMat, spectatorList, skyNight, skyDay, fogNight, fogDay, ambNight, ambDay, DAY_CYCLE, arenaRadius: AR, mapEffects };
 }
