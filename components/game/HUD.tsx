@@ -49,13 +49,15 @@ function lerpRgba(night: number[], day: number[], t: number): string {
 export default function HUD({
   multiProps,
   challengeProps,
+  challengeUsername,
 }: {
   multiProps?: MultiProps;
   challengeProps?: ChallengeProps;
+  challengeUsername?: string;
 }) {
   const router = useRouter();
   const { data: session } = useSession();
-  const username = session?.user?.username ?? "";
+  const username = session?.user?.username ?? challengeUsername ?? "";
   const initials = username ? username.slice(0, 2).toUpperCase() : "??";
   const {
     hp,
@@ -88,25 +90,6 @@ export default function HUD({
   useEffect(() => {
     if (running) setHasEverStarted(true);
   }, [running]);
-
-  // Fetch challenge info if in challenge mode
-  useEffect(() => {
-    if (!challengeProps?.challengeMode || !challengeProps?.challengeToken)
-      return;
-    fetch(
-      `/api/challenges/${encodeURIComponent(challengeProps.challengeToken)}`,
-    )
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d?.challenge)
-          setChallengeInfo({
-            targetScore: d.challenge.targetScore,
-            targetWaves: d.challenge.targetWaves,
-            targetKills: d.challenge.targetKills,
-          });
-      })
-      .catch(() => {});
-  }, [challengeProps]);
 
   function saveProgress() {
     if (!session?.user?.username) return;
@@ -267,11 +250,7 @@ export default function HUD({
 
   const savedRef = useRef(false);
   const [best, setBest] = useState<number | null>(null);
-  const [challengeInfo, setChallengeInfo] = useState<{
-    targetScore?: number;
-    targetWaves?: number;
-    targetKills?: number;
-  } | null>(null);
+  const challengeObjectives = challengeProps?.challengeMode ? (challengeProps.objectives ?? null) : null;
 
   // Account level + achievements
   const [levelInfo, setLevelInfo] = useState<{
@@ -595,7 +574,7 @@ export default function HUD({
       />
 
       {/* ── Challenge Objectives Panel ── */}
-      {challengeProps?.challengeMode && challengeInfo && (
+      {challengeProps?.challengeMode && challengeObjectives && (
         <div
           style={{
             position: "absolute",
@@ -633,7 +612,7 @@ export default function HUD({
               DESAFIO
             </span>
           </div>
-          {challengeInfo.targetScore && (
+          {challengeObjectives.targetScore && (
             <div
               style={{
                 display: "flex",
@@ -642,7 +621,7 @@ export default function HUD({
                 padding: "2px 8px",
                 borderRadius: 4,
                 background:
-                  score >= challengeInfo.targetScore
+                  score >= challengeObjectives.targetScore
                     ? "rgba(46,204,113,0.3)"
                     : "rgba(255,215,0,0.15)",
               }}
@@ -650,7 +629,7 @@ export default function HUD({
               <Zap
                 size={12}
                 color={
-                  score >= challengeInfo.targetScore ? "#2ecc71" : "#ffd700"
+                  score >= challengeObjectives.targetScore ? "#2ecc71" : "#ffd700"
                 }
               />
               <span
@@ -658,16 +637,16 @@ export default function HUD({
                   fontSize: isMobile ? 11 : 12,
                   fontWeight: 700,
                   color:
-                    score >= challengeInfo.targetScore ? "#2ecc71" : "#ffd700",
+                    score >= challengeObjectives.targetScore ? "#2ecc71" : "#ffd700",
                   fontFamily: "monospace",
                 }}
               >
                 {score.toLocaleString()}/
-                {challengeInfo.targetScore.toLocaleString()}
+                {challengeObjectives.targetScore.toLocaleString()}
               </span>
             </div>
           )}
-          {challengeInfo.targetWaves && (
+          {challengeObjectives.targetWaves && (
             <div
               style={{
                 display: "flex",
@@ -676,7 +655,7 @@ export default function HUD({
                 padding: "2px 8px",
                 borderRadius: 4,
                 background:
-                  wave >= challengeInfo.targetWaves
+                  wave >= challengeObjectives.targetWaves
                     ? "rgba(46,204,113,0.3)"
                     : "rgba(243,156,18,0.15)",
               }}
@@ -684,7 +663,7 @@ export default function HUD({
               <BarChart2
                 size={12}
                 color={
-                  wave >= challengeInfo.targetWaves ? "#2ecc71" : "#f39c12"
+                  wave >= challengeObjectives.targetWaves ? "#2ecc71" : "#f39c12"
                 }
               />
               <span
@@ -692,15 +671,15 @@ export default function HUD({
                   fontSize: isMobile ? 11 : 12,
                   fontWeight: 700,
                   color:
-                    wave >= challengeInfo.targetWaves ? "#2ecc71" : "#f39c12",
+                    wave >= challengeObjectives.targetWaves ? "#2ecc71" : "#f39c12",
                   fontFamily: "monospace",
                 }}
               >
-                {wave}/{challengeInfo.targetWaves}
+                {wave}/{challengeObjectives.targetWaves}
               </span>
             </div>
           )}
-          {challengeInfo.targetKills && (
+          {challengeObjectives.targetKills && (
             <div
               style={{
                 display: "flex",
@@ -709,7 +688,7 @@ export default function HUD({
                 padding: "2px 8px",
                 borderRadius: 4,
                 background:
-                  kills >= challengeInfo.targetKills
+                  kills >= challengeObjectives.targetKills
                     ? "rgba(46,204,113,0.3)"
                     : "rgba(231,76,60,0.15)",
               }}
@@ -717,7 +696,7 @@ export default function HUD({
               <Crosshair
                 size={12}
                 color={
-                  kills >= challengeInfo.targetKills ? "#2ecc71" : "#e74c3c"
+                  kills >= challengeObjectives.targetKills ? "#2ecc71" : "#e74c3c"
                 }
               />
               <span
@@ -725,11 +704,11 @@ export default function HUD({
                   fontSize: isMobile ? 11 : 12,
                   fontWeight: 700,
                   color:
-                    kills >= challengeInfo.targetKills ? "#2ecc71" : "#e74c3c",
+                    kills >= challengeObjectives.targetKills ? "#2ecc71" : "#e74c3c",
                   fontFamily: "monospace",
                 }}
               >
-                {kills}/{challengeInfo.targetKills}
+                {kills}/{challengeObjectives.targetKills}
               </span>
             </div>
           )}

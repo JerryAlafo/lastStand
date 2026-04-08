@@ -13,12 +13,20 @@ import { getMapById } from "@/lib/maps";
 
 const AR = 18; // Legacy constant - no longer used for boundary checks
 
+export interface ChallengeObjectives {
+  targetScore?: number;
+  targetWaves?: number;
+  targetKills?: number;
+}
+
 export interface ChallengeProps {
   challengeMode: true;
   mapId: string;
   challengeToken: string;
   seed: number;
   onGameOver: (score: number, wave: number, kills: number) => void;
+  objectives?: ChallengeObjectives;
+  username?: string;
 }
 
 export default function GameScene({ multiProps, challengeProps }: { multiProps?: MultiProps; challengeProps?: ChallengeProps }) {
@@ -38,6 +46,7 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
       return () => clearTimeout(t);
     }
     if (challengeProps?.challengeMode) {
+      storeRef.current.reset(challengeProps.mapId);
       storeRef.current.setRunning(true);
     }
   }, [mounted, multiProps, challengeProps]);
@@ -776,7 +785,7 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
-      <HUD multiProps={multiProps} challengeProps={challengeProps} />
+      <HUD multiProps={multiProps} challengeProps={challengeProps} challengeUsername={challengeProps?.username} />
     </div>
   );
 }

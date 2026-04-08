@@ -60,7 +60,7 @@ export interface GameState {
   triggerDash: () => void
   tickSpawn: () => boolean
   enemyDied: () => void
-  reset: () => void
+  reset: (mapId?: string) => void
   applyUpgrade: (id: string) => void
   setPendingUpgrade: (v: boolean) => void
   setClass: (c: ClassType | null) => void

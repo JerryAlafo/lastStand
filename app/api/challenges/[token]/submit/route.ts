@@ -35,13 +35,21 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
     }
 
-    const hasScoreTarget = challenge.targetScore != null;
-    const hasWaveTarget = challenge.targetWaves != null;
-    const hasKillsTarget = challenge.targetKills != null;
+    // Verificar se há objetivos definidos
+    const hasScoreTarget = challenge.targetScore != null && challenge.targetScore > 0;
+    const hasWaveTarget = challenge.targetWaves != null && challenge.targetWaves > 0;
+    const hasKillsTarget = challenge.targetKills != null && challenge.targetKills > 0;
+
+    // Se não há objetivos, não pode ser completado
+    if (!hasScoreTarget && !hasWaveTarget && !hasKillsTarget) {
+      return NextResponse.json({ ok: true, beatRecord: false, completedAllTargets: false, reason: "no_targets" });
+    }
+
+    // Verificar se todos os objetivos foram atingidos
     const metScoreTarget = !hasScoreTarget || score >= challenge.targetScore;
     const metWaveTarget = !hasWaveTarget || wave >= challenge.targetWaves;
     const metKillsTarget = !hasKillsTarget || kills >= challenge.targetKills;
-    const completedAllTargets = (!hasScoreTarget && !hasWaveTarget && !hasKillsTarget) || (metScoreTarget && metWaveTarget && metKillsTarget);
+    const completedAllTargets = metScoreTarget && metWaveTarget && metKillsTarget;
 
     if (completedAllTargets) {
       const beatRecord = score > challenge.score;
@@ -56,7 +64,12 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       return NextResponse.json({ ok: true, beatRecord, completedAllTargets: true });
     }
 
-    return NextResponse.json({ ok: true, beatRecord: false, completedAllTargets: false });
+    return NextResponse.json({ 
+      ok: true, 
+      beatRecord: false, 
+      completedAllTargets: false,
+      debug: { score, wave, kills, hasScoreTarget, hasWaveTarget, hasKillsTarget, metScoreTarget, metWaveTarget, metKillsTarget }
+    });
   } catch {
     return NextResponse.json({ error: "Falha ao submeter desafio." }, { status: 500 });
   }
