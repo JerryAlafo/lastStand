@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Zap, Pause } from "lucide-react";
 
 export default function VirtualControls({
@@ -22,9 +22,49 @@ export default function VirtualControls({
 }) {
   const joyRef = useRef<{ ox: number; oy: number; id: number } | null>(null);
   const [joyPos, setJoyPos] = useState({ x: 0, y: 0 });
-  const BASE_R = 60;
-  const HANDLE_R = 26;
+  const [screenSize, setScreenSize] = useState<"normal" | "small" | "tiny">("normal");
+  
   const DEAD = 8;
+  
+  const sizes = {
+    normal: {
+      baseR: 60, handleR: 26, ultSize: 72, dashSize: 58,
+      bottomOffset: 120, leftOffset: 35, rightOffset: 28,
+      pauseTop: 14, pauseSize: 42,
+      buttonGap: 16,
+    },
+    small: {
+      baseR: 50, handleR: 20, ultSize: 58, dashSize: 48,
+      bottomOffset: 100, leftOffset: 28, rightOffset: 22,
+      pauseTop: 12, pauseSize: 38,
+      buttonGap: 12,
+    },
+    tiny: {
+      baseR: 40, handleR: 16, ultSize: 48, dashSize: 40,
+      bottomOffset: 85, leftOffset: 20, rightOffset: 16,
+      pauseTop: 45, pauseSize: 32,
+      buttonGap: 8,
+    },
+  };
+
+  const s = sizes[screenSize];
+
+  useEffect(() => {
+    function updateSize() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      if (w <= 360 || h <= 700) {
+        setScreenSize("tiny");
+      } else if (w <= 400 || h <= 780) {
+        setScreenSize("small");
+      } else {
+        setScreenSize("normal");
+      }
+    }
+    updateSize();
+    window.addEventListener("resize", updateSize);
+    return () => window.removeEventListener("resize", updateSize);
+  }, []);
 
   function setKeys(dx: number, dy: number) {
     const w = window as unknown as Record<string, unknown>;
@@ -61,7 +101,7 @@ export default function VirtualControls({
     const dx = t.clientX - joyRef.current.ox;
     const dy = t.clientY - joyRef.current.oy;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const clamp = Math.min(dist, BASE_R);
+    const clamp = Math.min(dist, s.baseR);
     const nx = dist > 0 ? (dx / dist) * clamp : 0;
     const ny = dist > 0 ? (dy / dist) * clamp : 0;
     setJoyPos({ x: nx, y: ny });
@@ -87,10 +127,10 @@ export default function VirtualControls({
         onTouchCancel={onEnd}
         style={{
           position: "absolute",
-          bottom: 110,
-          left: 30,
-          width: BASE_R * 2,
-          height: BASE_R * 2,
+          bottom: s.bottomOffset,
+          left: s.leftOffset,
+          width: s.baseR * 2,
+          height: s.baseR * 2,
           borderRadius: "50%",
           background: "rgba(255,255,255,0.06)",
           border: "2px solid rgba(255,255,255,0.18)",
@@ -108,8 +148,8 @@ export default function VirtualControls({
         <div
           style={{
             position: "absolute",
-            width: HANDLE_R * 2,
-            height: HANDLE_R * 2,
+            width: s.handleR * 2,
+            height: s.handleR * 2,
             borderRadius: "50%",
             background:
               "radial-gradient(circle at 35% 35%, rgba(123,47,247,0.8), rgba(90,29,212,0.5))",
@@ -126,21 +166,21 @@ export default function VirtualControls({
       <div
         style={{
           position: "absolute",
-          bottom: 100,
-          right: 24,
+          bottom: s.bottomOffset - 15,
+          right: s.rightOffset,
           display: running ? "flex" : "none",
           flexDirection: "column",
-          gap: 14,
+          gap: s.buttonGap,
           alignItems: "center",
           zIndex: 20,
         }}
       >
         {/* ULT button */}
-        <div style={{ position: "relative", width: 72, height: 72 }}>
+        <div style={{ position: "relative", width: s.ultSize, height: s.ultSize }}>
           {/* Charge ring */}
           <svg
-            width="72"
-            height="72"
+            width={s.ultSize}
+            height={s.ultSize}
             style={{
               position: "absolute",
               inset: 0,
@@ -148,22 +188,22 @@ export default function VirtualControls({
             }}
           >
             <circle
-              cx="36"
-              cy="36"
-              r="32"
+              cx={s.ultSize / 2}
+              cy={s.ultSize / 2}
+              r={s.ultSize / 2 - 4}
               fill="none"
               stroke="rgba(255,220,0,0.15)"
-              strokeWidth="4"
+              strokeWidth="3"
             />
             <circle
-              cx="36"
-              cy="36"
-              r="32"
+              cx={s.ultSize / 2}
+              cy={s.ultSize / 2}
+              r={s.ultSize / 2 - 4}
               fill="none"
               stroke={ultReady ? "#ffd700" : "rgba(255,220,0,0.5)"}
-              strokeWidth="4"
-              strokeDasharray={`${2 * Math.PI * 32}`}
-              strokeDashoffset={`${2 * Math.PI * 32 * (1 - ultPct)}`}
+              strokeWidth="3"
+              strokeDasharray={`${2 * Math.PI * (s.ultSize / 2 - 4)}`}
+              strokeDashoffset={`${2 * Math.PI * (s.ultSize / 2 - 4) * (1 - ultPct)}`}
               strokeLinecap="round"
               style={{ transition: "stroke-dashoffset 0.3s" }}
             />
@@ -175,7 +215,7 @@ export default function VirtualControls({
             }}
             style={{
               position: "absolute",
-              inset: 6,
+              inset: screenSize === "tiny" ? 4 : 6,
               borderRadius: "50%",
               background: ultActive
                 ? "radial-gradient(circle, #fff8c0, #ffd700)"
@@ -186,7 +226,7 @@ export default function VirtualControls({
                 ? "2px solid #ffd700"
                 : "2px solid rgba(255,215,0,0.3)",
               color: ultReady ? "#000" : "rgba(255,215,0,0.5)",
-              fontSize: 22,
+              fontSize: screenSize === "tiny" ? 16 : 22,
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -196,7 +236,7 @@ export default function VirtualControls({
               touchAction: "none",
             }}
           >
-            <Zap size={22} />
+            <Zap size={screenSize === "tiny" ? 16 : 22} />
           </button>
         </div>
 
@@ -207,14 +247,14 @@ export default function VirtualControls({
             onDash();
           }}
           style={{
-            width: 58,
-            height: 58,
+            width: s.dashSize,
+            height: s.dashSize,
             borderRadius: "50%",
             background:
               "radial-gradient(circle at 35% 35%, rgba(123,47,247,0.75), rgba(90,29,212,0.45))",
             border: "2px solid rgba(123,47,247,0.55)",
             color: "#fff",
-            fontSize: 13,
+            fontSize: screenSize === "tiny" ? 9 : 12,
             fontWeight: 800,
             fontFamily: "monospace",
             letterSpacing: 1,
@@ -235,8 +275,8 @@ export default function VirtualControls({
         <button
           onTouchStart={(e) => { e.preventDefault(); onPause(); }}
           style={{
-            position: "absolute", top: 14, right: 14, zIndex: 20,
-            width: 42, height: 42, borderRadius: "50%",
+            position: "absolute", top: s.pauseTop, right: 12, zIndex: 20,
+            width: s.pauseSize, height: s.pauseSize, borderRadius: "50%",
             background: "rgba(255,255,255,0.08)",
             border: "1px solid rgba(255,255,255,0.18)",
             backdropFilter: "blur(8px)",
@@ -244,7 +284,7 @@ export default function VirtualControls({
             display: "flex", alignItems: "center", justifyContent: "center",
             touchAction: "none",
           }}
-        ><Pause size={18} /></button>
+        ><Pause size={screenSize === "tiny" ? 14 : 18} /></button>
       )}
     </>
   );

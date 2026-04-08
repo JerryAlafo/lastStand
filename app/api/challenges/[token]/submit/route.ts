@@ -1,24 +1,25 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { getChallenge, upsertChallenge } from "@/lib/fileStore";
+import { getChallengeByToken, upsertChallenge } from "@/lib/db";
 
 export async function POST(req: NextRequest, { params }: { params: { token: string } }) {
   try {
     const token_auth = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     const username = token_auth?.username as string | undefined;
-    if (!username) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const userId = token_auth?.userId as string | undefined;
+    if (!username || !userId) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
-    const challenge = await getChallenge(params.token);
+    const challenge = await getChallengeByToken(params.token);
     if (!challenge) {
       return NextResponse.json({ error: "Desafio não encontrado." }, { status: 404 });
     }
 
-    if (challenge.status === "expired" || Date.now() > challenge.expiresAt) {
+    if (challenge.status === "expired" || new Date(challenge.expires_at) < new Date()) {
       return NextResponse.json({ error: "Desafio expirado." }, { status: 410 });
     }
 
-    if (challenge.completedBy && challenge.completedBy !== username) {
+    if (challenge.completed_by && challenge.completed_by !== username) {
       return NextResponse.json({ error: "Este desafio já foi completado por outro jogador." }, { status: 403 });
     }
 
@@ -35,20 +36,17 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
     }
 
-    // Verificar se há objetivos definidos
-    const hasScoreTarget = challenge.targetScore != null && challenge.targetScore > 0;
-    const hasWaveTarget = challenge.targetWaves != null && challenge.targetWaves > 0;
-    const hasKillsTarget = challenge.targetKills != null && challenge.targetKills > 0;
+    const hasScoreTarget = challenge.target_score != null && challenge.target_score > 0;
+    const hasWaveTarget = challenge.target_waves != null && challenge.target_waves > 0;
+    const hasKillsTarget = challenge.target_kills != null && challenge.target_kills > 0;
 
-    // Se não há objetivos, não pode ser completado
     if (!hasScoreTarget && !hasWaveTarget && !hasKillsTarget) {
       return NextResponse.json({ ok: true, beatRecord: false, completedAllTargets: false, reason: "no_targets" });
     }
 
-    // Verificar se todos os objetivos foram atingidos
-    const metScoreTarget = !hasScoreTarget || score >= challenge.targetScore;
-    const metWaveTarget = !hasWaveTarget || wave >= challenge.targetWaves;
-    const metKillsTarget = !hasKillsTarget || kills >= challenge.targetKills;
+    const metScoreTarget = !hasScoreTarget || score >= challenge.target_score;
+    const metWaveTarget = !hasWaveTarget || wave >= challenge.target_waves;
+    const metKillsTarget = !hasKillsTarget || kills >= challenge.target_kills;
     const completedAllTargets = metScoreTarget && metWaveTarget && metKillsTarget;
 
     if (completedAllTargets) {
@@ -58,7 +56,8 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
         challenge.wave = wave;
         challenge.kills = kills;
         challenge.status = "completed";
-        challenge.completedBy = username;
+        challenge.completed_by = username;
+        challenge.completed_by_id = userId;
         await upsertChallenge(challenge);
       }
       return NextResponse.json({ ok: true, beatRecord, completedAllTargets: true });
@@ -68,9 +67,9 @@ export async function POST(req: NextRequest, { params }: { params: { token: stri
       ok: true, 
       beatRecord: false, 
       completedAllTargets: false,
-      debug: { score, wave, kills, hasScoreTarget, hasWaveTarget, hasKillsTarget, metScoreTarget, metWaveTarget, metKillsTarget }
     });
-  } catch {
+  } catch (error) {
+    console.error("Error submitting challenge:", error);
     return NextResponse.json({ error: "Falha ao submeter desafio." }, { status: 500 });
   }
 }

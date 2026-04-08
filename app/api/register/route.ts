@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
-import bcrypt from "bcryptjs";
-import { readUsersLines, appendUserLine } from "@/lib/fileStore";
+import { createServiceClient } from "@/lib/supabase";
 
 function getClientIp(req: Request): string {
   const xff = req.headers.get("x-forwarded-for");
@@ -11,9 +9,11 @@ function getClientIp(req: Request): string {
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as { username?: string; password?: string };
+    const body = (await req.json()) as { username?: string; password?: string; email?: string };
     const username = body.username?.trim();
     const password = body.password;
+    const email = body.email || `${username}@laststand.local`;
+    
     if (!username || !password) {
       return NextResponse.json(
         { error: "Username e senha são obrigatórios." },
@@ -21,25 +21,65 @@ export async function POST(req: Request) {
       );
     }
 
-    const users = await readUsersLines();
-    const exists = users.some((l) => l.split("|")[0] === username);
-    if (exists) {
+    if (username.length < 3 || username.length > 20) {
+      return NextResponse.json(
+        { error: "Username deve ter entre 3 e 20 caracteres." },
+        { status: 400 },
+      );
+    }
+
+    if (password.length < 4) {
+      return NextResponse.json(
+        { error: "Senha deve ter pelo menos 4 caracteres." },
+        { status: 400 },
+      );
+    }
+
+    const supabase = createServiceClient();
+    const ip = getClientIp(req);
+    const userAgent = (req.headers.get("user-agent") ?? "unknown").slice(0, 250);
+
+    // Check if username already exists
+    const { data: existingUser } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", username)
+      .single();
+
+    if (existingUser) {
       return NextResponse.json({ error: "Este username já existe." }, { status: 409 });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const createdAt = new Date().toISOString();
-    const userId = randomUUID();
-    const ip = getClientIp(req);
-    // Sanitise userAgent: strip pipes so file format stays intact
-    const ua = (req.headers.get("user-agent") ?? "unknown").replace(/\|/g, ";").slice(0, 250);
+    // Create user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        username,
+      },
+    });
 
-    const line = `${username}|${hashedPassword}|${createdAt}|${userId}|${ip}|${ua}`;
-    console.log(`📝 Registering user: ${username}`);
-    await appendUserLine(line);
-    console.log(`✅ User registered successfully: ${username}`);
-    console.log(`✅ User registered successfully: ${username}`);
+    if (authError) {
+      console.error("❌ Supabase Auth error:", authError.message);
+      return NextResponse.json(
+        { error: `Falha ao registrar: ${authError.message}` },
+        { status: 500 },
+      );
+    }
 
+    // Update profile with additional info
+    if (authData.user) {
+      await supabase
+        .from("profiles")
+        .update({
+          ip,
+          user_agent: userAgent,
+        })
+        .eq("id", authData.user.id);
+    }
+
+    console.log(`✅ User registered successfully: ${username}`);
     return NextResponse.json({ ok: true });
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);

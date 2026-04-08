@@ -1,14 +1,15 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { upsertChallenge } from "@/lib/fileStore";
+import { upsertChallenge } from "@/lib/db";
 import { getMapById } from "@/lib/maps";
 
 export async function POST(req: NextRequest) {
   try {
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     const username = token?.username as string | undefined;
-    if (!username) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const userId = token?.userId as string | undefined;
+    if (!username || !userId) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
     const body = await req.json();
     const mapId = body?.mapId as string | undefined;
@@ -17,22 +18,25 @@ export async function POST(req: NextRequest) {
     }
 
     const map = getMapById(mapId)!;
-    const id = crypto.randomUUID().split("-")[0];
+    const tokenId = crypto.randomUUID().split("-")[0];
     const now = Date.now();
 
     const challenge = {
-      id,
+      id: tokenId,
+      token: tokenId,
+      creator_id: userId,
       creator: username,
-      mapId,
+      map_id: mapId,
+      map_name: map.namePt,
       seed: map.seed,
       score: 0,
       wave: 0,
       kills: 0,
-      targetScore: body?.targetScore as number | undefined,
-      targetWaves: body?.targetWaves as number | undefined,
-      targetKills: body?.targetKills as number | undefined,
-      createdAt: now,
-      expiresAt: now + 24 * 60 * 60 * 1000,
+      target_score: body?.targetScore as number | undefined,
+      target_waves: body?.targetWaves as number | undefined,
+      target_kills: body?.targetKills as number | undefined,
+      created_at: new Date(now).toISOString(),
+      expires_at: new Date(now + 24 * 60 * 60 * 1000).toISOString(),
       status: "active" as const,
     };
 
@@ -41,17 +45,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       challenge: {
-        id: challenge.id,
-        creator: challenge.creator,
-        mapId: challenge.mapId,
+        id: tokenId,
+        creator: username,
+        mapId: mapId,
+        mapName: map.namePt,
         seed: challenge.seed,
-        targetScore: challenge.targetScore,
-        targetWaves: challenge.targetWaves,
-        targetKills: challenge.targetKills,
-        expiresAt: challenge.expiresAt,
+        targetScore: challenge.target_score,
+        targetWaves: challenge.target_waves,
+        targetKills: challenge.target_kills,
+        expiresAt: challenge.expires_at,
       },
     });
-  } catch {
+  } catch (error) {
+    console.error("Error creating challenge:", error);
     return NextResponse.json({ error: "Falha ao criar desafio." }, { status: 500 });
   }
 }

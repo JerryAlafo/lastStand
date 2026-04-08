@@ -26,9 +26,34 @@ export default function LoginForm() {
     setError(null);
     setLoading(true);
     try {
-      const res = await signIn("credentials", { username, password, redirect: false });
-      if (!res || res.error) { setError("Username ou senha inválidos."); return; }
+      // Try new login API first
+      const loginRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      
+      const loginData = await loginRes.json();
+      
+      if (!loginRes.ok) {
+        setError(loginData.error || "Username ou senha inválidos.");
+        return;
+      }
+
+      // Now sign in with NextAuth using the returned user data
+      const res = await signIn("credentials", { 
+        username, 
+        password, 
+        redirect: false 
+      });
+      
+      if (!res || res.error) { 
+        setError("Username ou senha inválidos."); 
+        return; 
+      }
       router.push("/game");
+    } catch (err) {
+      setError("Ocorreu um erro. Tenta novamente.");
     } finally {
       setLoading(false);
     }

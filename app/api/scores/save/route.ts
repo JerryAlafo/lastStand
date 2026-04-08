@@ -2,11 +2,18 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import {
-  appendScoreLine, readScoresLines, appendWeeklyLine,
-  getUserLevel, upsertUserLevel, getUserAchievements, appendAchievementLine,
-  upsertMissionProgress, getMissionProgress, readPvpWinsLines,
-  readWeeklyLines, readPushMeta, setPushMeta,
-} from "@/lib/fileStore";
+  saveScore,
+  upsertWeeklyScore,
+  getUserLevel,
+  upsertUserLevel,
+  getUserAchievements,
+  unlockAchievement,
+  upsertMissionProgress,
+  getMissionProgress,
+  getPvpWins,
+  setPushMeta,
+  getProfileByUsername,
+} from "@/lib/db";
 import {
   getLevel, xpForGame, getDailyMissions, getTodayDate,
   getNewAchievements, getWeekId,
@@ -16,45 +23,56 @@ export async function POST(req: NextRequest) {
   try {
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     const username = token?.username as string | undefined;
-    if (!username) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    const userId = token?.userId as string | undefined;
+    if (!username || !userId) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
-    const body = (await req.json()) as { score?: number; wave?: number; kills?: number; blastCount?: number };
+    const body = (await req.json()) as { score?: number; wave?: number; kills?: number; blastCount?: number; mapId?: string };
     const score      = Number(body.score      ?? 0);
     const wave       = Number(body.wave       ?? 0);
     const kills      = Number(body.kills      ?? 0);
     const blastCount = Number(body.blastCount ?? 0);
+    const mapId      = body.mapId ?? "arena";
     if (!Number.isFinite(score) || !Number.isFinite(wave) || !Number.isFinite(kills)) {
       return NextResponse.json({ error: "Payload inválido." }, { status: 400 });
     }
 
-    const timestamp = Date.now();
-    const today     = getTodayDate();
-    const weekId    = getWeekId();
+    const today  = getTodayDate();
+    const weekId = getWeekId();
 
     // 1. Save main score
-    await appendScoreLine(`${username}|${score}|${wave}|${kills}|${timestamp}|${blastCount}`);
+    await saveScore(userId, score, wave, kills, blastCount, mapId);
 
     // 2. Save weekly score
-    await appendWeeklyLine(`${username}|${score}|${wave}|${kills}|${weekId}|${timestamp}`);
+    await upsertWeeklyScore(userId, username, score, weekId);
 
     // 3. XP + level
     const xpEarned = xpForGame(score, wave, kills);
-    const ul = await getUserLevel(username);
-    const prevTotalXp = ul?.totalXp ?? 0;
+    const ul = await getUserLevel(userId);
+    const prevTotalXp = ul?.total_xp ?? 0;
     const newTotalXp  = prevTotalXp + xpEarned;
     const newLevel    = getLevel(newTotalXp);
     const levelUp     = newLevel > (ul?.level ?? 1);
-    await upsertUserLevel({ username, totalXp: newTotalXp, level: newLevel, selectedClass: ul?.selectedClass ?? null });
+    await upsertUserLevel({ 
+      id: ul?.id || "", 
+      user_id: userId, 
+      total_xp: newTotalXp, 
+      level: newLevel, 
+      selected_class: ul?.selected_class ?? null,
+      updated_at: new Date().toISOString(),
+    });
 
     // 4. Achievements
-    const [allScoreLines, pvpLines, achievedIds] = await Promise.all([
-      readScoresLines(), readPvpWinsLines(), getUserAchievements(username),
+    const [achievedIds, pvpWins] = await Promise.all([
+      getUserAchievements(userId),
+      getPvpWins(userId),
     ]);
-    const userScores = allScoreLines.map(l => l.split("|")).filter(p => p[0] === username);
-    const totalKills = userScores.reduce((s, p) => s + (Number(p[3]) || 0), 0);
-    const bestScore  = userScores.reduce((s, p) => Math.max(s, Number(p[1]) || 0), 0);
-    const maxWave    = userScores.reduce((s, p) => Math.max(s, Number(p[2]) || 0), 0);
-    const pvpWins    = pvpLines.filter(l => l.split("|")[0] === username).length;
+
+    // Get user's stats from scores for achievements
+    const { getUserScores } = await import("@/lib/db");
+    const userScores = await getUserScores(userId, 100);
+    const totalKills = userScores.reduce((s, p) => s + (p.kills || 0), 0);
+    const bestScore  = userScores.reduce((s, p) => Math.max(s, p.score || 0), 0);
+    const maxWave    = userScores.reduce((s, p) => Math.max(s, p.wave || 0), 0);
 
     const newAchievements = getNewAchievements(
       { totalKills, bestScore, maxWave, level: newLevel, pvpWins },
@@ -62,12 +80,12 @@ export async function POST(req: NextRequest) {
       new Set(achievedIds),
     );
     if (newAchievements.length > 0) {
-      await Promise.all(newAchievements.map(id => appendAchievementLine(`${username}|${id}|${timestamp}`)));
+      await Promise.all(newAchievements.map(id => unlockAchievement(userId, id)));
     }
 
     // 5. Mission progress
     const todayMissions = getDailyMissions(today);
-    const prevProgress  = await getMissionProgress(username, today);
+    const prevProgress = await getMissionProgress(userId, today);
 
     for (const m of todayMissions) {
       let newProg = prevProgress[m.id] ?? 0;
@@ -79,39 +97,30 @@ export async function POST(req: NextRequest) {
         case "kills_session": newProg = kills >= m.target ? m.target : Math.max(newProg, kills); break;
       }
       if (newProg !== (prevProgress[m.id] ?? 0)) {
-        await upsertMissionProgress(username, today, m.id, newProg);
+        await upsertMissionProgress(userId, today, m.id, newProg);
       }
     }
 
     // 6. Check for new #1 and broadcast push notification
     try {
-      const [allScores, weeklyLines, meta] = await Promise.all([
-        readScoresLines(), readWeeklyLines(), readPushMeta(),
+      const { getTopScores, getWeeklyScores, getPushMeta } = await import("@/lib/db");
+      const [globalScores, weeklyScores] = await Promise.all([
+        getTopScores(100),
+        getWeeklyScores(weekId, 100),
       ]);
 
-      // Best score per player (global)
-      const globalBest = new Map<string, number>();
-      for (const l of allScores) {
-        const [u, s] = l.split("|");
-        const sc = Number(s) || 0;
-        if (u && sc > (globalBest.get(u) ?? 0)) globalBest.set(u, sc);
-      }
-      const globalTop = Array.from(globalBest.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
-
-      const weekId = getWeekId();
-      const weekBest = new Map<string, number>();
-      for (const l of weeklyLines) {
-        const [u, s, , , wk] = l.split("|");
-        if (wk !== weekId) continue;
-        const sc = Number(s) || 0;
-        if (u && sc > (weekBest.get(u) ?? 0)) weekBest.set(u, sc);
-      }
-      const weeklyTop = Array.from(weekBest.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+      // Handle both old format (username at root) and new format (profiles relation)
+      const globalTop = (globalScores[0] as any)?.profiles?.username 
+        || (globalScores[0] as any)?.username 
+        || "";
+      const weeklyTop = weeklyScores[0]?.username ?? "";
+      const currentGlobal = await getPushMeta("top1_global") || "";
+      const currentWeekly = await getPushMeta("top1_weekly") || "";
 
       const { broadcastPush } = await import("@/lib/push");
       const notifications: Promise<void>[] = [];
 
-      if (globalTop && globalTop !== meta["top1_global"]) {
+      if (globalTop && globalTop !== currentGlobal) {
         await setPushMeta("top1_global", globalTop);
         notifications.push(broadcastPush({
           title: "Novo #1 Global!",
@@ -121,7 +130,7 @@ export async function POST(req: NextRequest) {
         }));
       }
 
-      if (weeklyTop && weeklyTop !== meta["top1_weekly"]) {
+      if (weeklyTop && weeklyTop !== currentWeekly) {
         await setPushMeta("top1_weekly", weeklyTop);
         notifications.push(broadcastPush({
           title: "Novo #1 Semanal!",
@@ -143,7 +152,8 @@ export async function POST(req: NextRequest) {
       levelUp,
       newAchievements,
     });
-  } catch {
+  } catch (error) {
+    console.error("Score save error:", error);
     return NextResponse.json({ error: "Falha ao salvar score." }, { status: 500 });
   }
 }
