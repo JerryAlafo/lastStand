@@ -78,6 +78,7 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
       camera, ambientLight, sun, arenaLight, ring,
       clouds, cloudMat, spectatorList,
       skyNight, skyDay, fogNight, fogDay, ambNight, ambDay, DAY_CYCLE, arenaRadius,
+      mapEffects,
     } = buildArena(scene, isWeak, mapId);
     camera.aspect = el.clientWidth / el.clientHeight;
     camera.updateProjectionMatrix();
@@ -441,6 +442,7 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
 
       frame++;
       s.tickEffects(); s.tickDash(); s.tickWave();
+      if (mapEffects) mapEffects.update(frame);
 
       // Remote player interpolation
       if (remoteRig) {

@@ -18,6 +18,7 @@ export interface ArenaResult {
   ambNight: THREE.Color; ambDay: THREE.Color;
   DAY_CYCLE: number;
   arenaRadius: number;
+  mapEffects?: { update: (frame: number) => void };
 }
 
 export function buildArena(scene: THREE.Scene, isMobile: boolean, mapId = "arena"): ArenaResult {
@@ -241,5 +242,211 @@ export function buildArena(scene: THREE.Scene, isMobile: boolean, mapId = "arena
     }
   }
 
-  return { camera, ambientLight, sun, arenaLight, ring, clouds, cloudMat, spectatorList, skyNight, skyDay, fogNight, fogDay, ambNight, ambDay, DAY_CYCLE, arenaRadius: AR };
+  // Map-specific visual effects
+  let mapEffects: { update: (frame: number) => void } | undefined;
+
+  if (mapId === "desert") {
+    // Sand storm particles - fewer on mobile for performance
+    const sandCount = isWeak ? 40 : 120;
+    const sandPositions = new Float32Array(sandCount * 3);
+    const sandVelocities: { x: number; y: number; z: number }[] = [];
+    for (let i = 0; i < sandCount; i++) {
+      sandPositions[i * 3] = (Math.random() - 0.5) * AR * 2;
+      sandPositions[i * 3 + 1] = Math.random() * 4 + 0.5;
+      sandPositions[i * 3 + 2] = (Math.random() - 0.5) * AR * 2;
+      sandVelocities.push({
+        x: (Math.random() - 0.5) * 0.08,
+        y: (Math.random() - 0.5) * 0.02,
+        z: (Math.random() - 0.5) * 0.08,
+      });
+    }
+    const sandGeo = new THREE.BufferGeometry();
+    sandGeo.setAttribute("position", new THREE.BufferAttribute(sandPositions, 3));
+    const sandMat = new THREE.PointsMaterial({ color: 0xd4a055, size: isWeak ? 0.25 : 0.15, transparent: true, opacity: 0.6, depthWrite: false });
+    const sandParticles = new THREE.Points(sandGeo, sandMat);
+    scene.add(sandParticles);
+
+    const updateInterval = isWeak ? 3 : 1; // Update less frequently on mobile
+    mapEffects = {
+      update: (frame: number) => {
+        if (frame % updateInterval !== 0) return;
+        const pos = sandGeo.attributes.position.array as Float32Array;
+        for (let i = 0; i < sandCount; i++) {
+          pos[i * 3] += sandVelocities[i].x;
+          pos[i * 3 + 1] += sandVelocities[i].y + Math.sin(frame * 0.02 + i) * 0.01;
+          pos[i * 3 + 2] += sandVelocities[i].z;
+          if (pos[i * 3] > AR) pos[i * 3] = -AR;
+          if (pos[i * 3] < -AR) pos[i * 3] = AR;
+          if (pos[i * 3 + 1] > 5) pos[i * 3 + 1] = 0.5;
+          if (pos[i * 3 + 1] < 0.5) pos[i * 3 + 1] = 5;
+          if (pos[i * 3 + 2] > AR) pos[i * 3 + 2] = -AR;
+          if (pos[i * 3 + 2] < -AR) pos[i * 3 + 2] = AR;
+        }
+        sandGeo.attributes.position.needsUpdate = true;
+      },
+    };
+  }
+
+  if (mapId === "ice") {
+    // Snow particles - fewer on mobile
+    const snowCount = isWeak ? 50 : 150;
+    const snowPositions = new Float32Array(snowCount * 3);
+    const snowVelocities: { x: number; y: number; z: number }[] = [];
+    for (let i = 0; i < snowCount; i++) {
+      snowPositions[i * 3] = (Math.random() - 0.5) * AR * 2;
+      snowPositions[i * 3 + 1] = Math.random() * 6;
+      snowPositions[i * 3 + 2] = (Math.random() - 0.5) * AR * 2;
+      snowVelocities.push({
+        x: (Math.random() - 0.5) * 0.03,
+        y: -0.02 - Math.random() * 0.02,
+        z: (Math.random() - 0.5) * 0.03,
+      });
+    }
+    const snowGeo = new THREE.BufferGeometry();
+    snowGeo.setAttribute("position", new THREE.BufferAttribute(snowPositions, 3));
+    const snowMat = new THREE.PointsMaterial({ color: 0xffffff, size: isWeak ? 0.2 : 0.12, transparent: true, opacity: 0.8, depthWrite: false });
+    const snowParticles = new THREE.Points(snowGeo, snowMat);
+    scene.add(snowParticles);
+
+    // Ice crystals on walls (desktop only)
+    if (!isWeak) {
+      const crystalGroup = new THREE.Group();
+      for (let i = 0; i < 20; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const crystalGeo = new THREE.ConeGeometry(0.15, 0.4 + Math.random() * 0.3, 5);
+        const crystalMat = new THREE.MeshStandardMaterial({
+          color: 0xaaeeff,
+          emissive: 0x66ccff,
+          emissiveIntensity: 0.3,
+          transparent: true,
+          opacity: 0.7,
+          roughness: 0.1,
+          metalness: 0.3,
+        });
+        const crystal = new THREE.Mesh(crystalGeo, crystalMat);
+        crystal.position.set(Math.cos(angle) * (AR - 0.5), 1 + Math.random(), Math.sin(angle) * (AR - 0.5));
+        crystal.rotation.x = Math.random() * 0.3;
+        crystal.rotation.z = Math.random() * 0.3;
+        crystalGroup.add(crystal);
+      }
+      scene.add(crystalGroup);
+    }
+
+    const updateInterval = isWeak ? 3 : 1;
+    mapEffects = {
+      update: (frame: number) => {
+        if (frame % updateInterval !== 0) return;
+        const pos = snowGeo.attributes.position.array as Float32Array;
+        for (let i = 0; i < snowCount; i++) {
+          pos[i * 3] += snowVelocities[i].x + Math.sin(frame * 0.01 + i * 0.5) * 0.02;
+          pos[i * 3 + 1] += snowVelocities[i].y;
+          pos[i * 3 + 2] += snowVelocities[i].z + Math.cos(frame * 0.01 + i * 0.5) * 0.02;
+          if (pos[i * 3 + 1] < 0.2) {
+            pos[i * 3 + 1] = 6;
+            pos[i * 3] = (Math.random() - 0.5) * AR * 2;
+            pos[i * 3 + 2] = (Math.random() - 0.5) * AR * 2;
+          }
+        }
+        snowGeo.attributes.position.needsUpdate = true;
+      },
+    };
+  }
+
+  if (mapId === "lava") {
+    // Fire/Lava particles - fewer on mobile
+    const fireCount = isWeak ? 35 : 80;
+    const firePositions = new Float32Array(fireCount * 3);
+    const fireVelocities: { x: number; y: number; z: number; life: number }[] = [];
+    for (let i = 0; i < fireCount; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const r = Math.random() * (AR - 2);
+      firePositions[i * 3] = Math.cos(angle) * r;
+      firePositions[i * 3 + 1] = Math.random() * 0.5;
+      firePositions[i * 3 + 2] = Math.sin(angle) * r;
+      fireVelocities.push({
+        x: (Math.random() - 0.5) * 0.04,
+        y: 0.05 + Math.random() * 0.08,
+        z: (Math.random() - 0.5) * 0.04,
+        life: Math.random(),
+      });
+    }
+    const fireGeo = new THREE.BufferGeometry();
+    fireGeo.setAttribute("position", new THREE.BufferAttribute(firePositions, 3));
+    const fireMat = new THREE.PointsMaterial({
+      color: 0xff4400,
+      size: isWeak ? 0.35 : 0.25,
+      transparent: true,
+      opacity: 0.9,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const fireParticles = new THREE.Points(fireGeo, fireMat);
+    scene.add(fireParticles);
+
+    // Glowing lava cracks on floor (desktop only)
+    if (!isWeak) {
+      const crackMat = new THREE.MeshStandardMaterial({
+        color: 0xff2200,
+        emissive: 0xff4400,
+        emissiveIntensity: 0.8,
+        transparent: true,
+        opacity: 0.6,
+      });
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const crack = new THREE.Mesh(
+          new THREE.BoxGeometry(0.1, 0.05, AR * 0.7),
+          crackMat,
+        );
+        crack.position.set(
+          Math.cos(angle) * AR * 0.5,
+          0.03,
+          Math.sin(angle) * AR * 0.5,
+        );
+        crack.rotation.y = angle + Math.PI / 2;
+        scene.add(crack);
+      }
+
+      // Lava bubbles
+      const bubbleMat = new THREE.MeshStandardMaterial({
+        color: 0xff3300,
+        emissive: 0xff5500,
+        emissiveIntensity: 0.6,
+        transparent: true,
+        opacity: 0.8,
+      });
+      for (let i = 0; i < 6; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = 2 + Math.random() * (AR - 4);
+        const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.2 + Math.random() * 0.3, 8, 8), bubbleMat);
+        bubble.position.set(Math.cos(angle) * r, 0.1, Math.sin(angle) * r);
+        scene.add(bubble);
+      }
+    }
+
+    const updateInterval = isWeak ? 3 : 1;
+    mapEffects = {
+      update: (frame: number) => {
+        if (frame % updateInterval !== 0) return;
+        const pos = fireGeo.attributes.position.array as Float32Array;
+        for (let i = 0; i < fireCount; i++) {
+          pos[i * 3] += fireVelocities[i].x + Math.sin(frame * 0.05 + i) * 0.02;
+          pos[i * 3 + 1] += fireVelocities[i].y;
+          pos[i * 3 + 2] += fireVelocities[i].z + Math.cos(frame * 0.05 + i) * 0.02;
+          fireVelocities[i].life += 0.02;
+          if (pos[i * 3 + 1] > 3 || fireVelocities[i].life > 1) {
+            const angle = Math.random() * Math.PI * 2;
+            const r = Math.random() * (AR - 2);
+            pos[i * 3] = Math.cos(angle) * r;
+            pos[i * 3 + 1] = 0.1;
+            pos[i * 3 + 2] = Math.sin(angle) * r;
+            fireVelocities[i].life = 0;
+          }
+        }
+        fireGeo.attributes.position.needsUpdate = true;
+      },
+    };
+  }
+
+  return { camera, ambientLight, sun, arenaLight, ring, clouds, cloudMat, spectatorList, skyNight, skyDay, fogNight, fogDay, ambNight, ambDay, DAY_CYCLE, arenaRadius: AR, mapEffects };
 }
