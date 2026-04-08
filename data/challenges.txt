@@ -2,3 +2,4 @@
 {"id":"9c855bc6","creator":"JoyBoy","mapId":"desert","seed":101,"score":600,"wave":3,"kills":36,"targetWaves":2,"createdAt":1775642968678,"expiresAt":1775729368678,"status":"completed","completedBy":"jerry_teste"}
 {"id":"3f62b225","creator":"jerry_teste","mapId":"arena","seed":42,"score":140,"wave":2,"kills":14,"targetWaves":2,"createdAt":1775643838729,"expiresAt":1775730238729,"status":"completed","completedBy":"JoyBoy"}
 {"id":"c3cf23d6","creator":"jerry_teste","mapId":"desert","seed":101,"score":240,"wave":2,"kills":19,"targetWaves":2,"createdAt":1775645580748,"expiresAt":1775731980748,"status":"completed","completedBy":"JoyBoy"}
+{"id":"0aa14e73","creator":"jerry_teste","mapId":"desert","seed":101,"score":500,"wave":3,"kills":32,"targetWaves":3,"createdAt":1775653547162,"expiresAt":1775739947162,"status":"completed","completedBy":"JoyBoy"}

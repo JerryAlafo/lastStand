@@ -685,6 +685,26 @@ export default function ChallengePage() {
               Por: {challenge.completedBy}
             </Typography>
           </Box>
+        ) : challenge.creator === (session?.user as { username?: string })?.username ? (
+          <Box
+            sx={{
+              p: "16px",
+              background: "rgba(123,47,247,0.1)",
+              border: "1px solid rgba(123,47,247,0.3)",
+              borderRadius: 3,
+              textAlign: "center",
+              mb: 2,
+            }}
+          >
+            <Typography
+              sx={{ fontSize: 14, color: "#aa55ff", fontWeight: 700 }}
+            >
+              Este é o teu desafio
+            </Typography>
+            <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+              Partilha o link com um amigo para ele aceitar o desafio!
+            </Typography>
+          </Box>
         ) : (
           <Button
             onClick={handlePlay}
