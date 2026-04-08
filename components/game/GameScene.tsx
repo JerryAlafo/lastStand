@@ -424,6 +424,19 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
         const ww = window as unknown as Record<string, unknown>;
         if (!ww.__pvpResult) ww.__pvpResult = "loss";
       }
+
+      // Challenge mode: check if all objectives are met
+      if (challengeProps?.challengeMode && challengeProps.objectives && !s.gameOver) {
+        const obj = challengeProps.objectives;
+        const scoreMet = !obj.targetScore || s.score >= obj.targetScore;
+        const wavesMet = !obj.targetWaves || s.wave >= obj.targetWaves;
+        const killsMet = !obj.targetKills || s.kills >= obj.targetKills;
+        if (scoreMet && wavesMet && killsMet) {
+          s.setGameOver(true);
+          s.setRunning(false);
+        }
+      }
+
       if (!s.running) return;
 
       frame++;
@@ -452,7 +465,24 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
       if (!multiProps || (multiProps.mode === "coop" && multiProps.role === "host")) {
         if (s.waveTimer === 0) {
           if (s.tickSpawn()) spawnEnemy(s.wave);
-          if (s.spawnQueue === 0 && enemies.length === 0 && s.enemiesLeft <= 0) s.nextWave();
+          if (s.spawnQueue === 0 && enemies.length === 0 && s.enemiesLeft <= 0) {
+            // In challenge mode, check if objectives are met before moving to next wave
+            if (challengeProps?.challengeMode && challengeProps.objectives) {
+              const obj = challengeProps.objectives;
+              const scoreMet = !obj.targetScore || s.score >= obj.targetScore;
+              const wavesMet = !obj.targetWaves || s.wave >= obj.targetWaves;
+              const killsMet = !obj.targetKills || s.kills >= obj.targetKills;
+              if (scoreMet && wavesMet && killsMet) {
+                s.setGameOver(true);
+                s.setRunning(false);
+              } else {
+                s.nextWave();
+                s.setRunning(true);
+              }
+            } else {
+              s.nextWave();
+            }
+          }
         } else if (s.waveTimer === 1) { s.startWave(); }
       }
 

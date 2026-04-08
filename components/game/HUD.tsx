@@ -458,7 +458,7 @@ export default function HUD({
       )}
 
       {/* ── Wave upgrade card picker ── */}
-      {pendingUpgrade && !gameOver && hasUpgradesAvailable(upgrades) && (
+      {pendingUpgrade && !gameOver && hasUpgradesAvailable(upgrades) && !challengeProps?.challengeMode && (
         <UpgradeModal
           wave={wave}
           upgrades={upgrades}
