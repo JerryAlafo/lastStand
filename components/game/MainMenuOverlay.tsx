@@ -23,7 +23,7 @@ import { useState, useEffect, useRef } from "react";
 import { Session } from "next-auth";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { MultiProps } from "@/lib/gameTypes";
-import { MAPS, getDifficultyColor, getDifficultyLabel } from "@/lib/maps";
+import { MAPS } from "@/lib/maps";
 import { MapPin } from "lucide-react";
 
 interface LevelInfo { level: number; title: string; color: string; xpProgress: number; xpNeeded: number; selectedClass: string | null }
@@ -301,8 +301,8 @@ export default function MainMenuOverlay({
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <MapPin size={14} color={map.accentColor} />
                     <span style={{ fontSize: 13, fontWeight: 700 }}>{map.namePt}</span>
-                    <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 5, background: `${getDifficultyColor(map.difficulty)}22`, border: `1px solid ${getDifficultyColor(map.difficulty)}44`, color: getDifficultyColor(map.difficulty), fontWeight: 700, marginLeft: "auto" }}>
-                      {getDifficultyLabel(map.difficulty)}
+                    <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 5, background: "#e74c3c22", border: "1px solid #e74c3c44", color: "#e74c3c", fontWeight: 700, marginLeft: "auto" }}>
+                      EXTREMO
                     </span>
                   </div>
                   <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 3, marginLeft: 22 }}>{map.descPt}</div>

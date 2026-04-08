@@ -11,7 +11,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import {
   ArrowLeft, Swords, Target, Plus, Clock, Trophy, MapPin, Share2, Copy, Check,
 } from "lucide-react";
-import { MAPS, getDifficultyColor, getDifficultyLabel } from "@/lib/maps";
+import { MAPS } from "@/lib/maps";
 
 interface Challenge {
   id: string;
@@ -122,8 +122,8 @@ export default function ChallengesPage() {
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                     <MapPin size={16} color={map.accentColor} />
                     <Typography sx={{ fontSize: 15, fontWeight: 700 }}>{map.namePt}</Typography>
-                    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, background: `${getDifficultyColor(map.difficulty)}22`, border: `1px solid ${getDifficultyColor(map.difficulty)}55`, color: getDifficultyColor(map.difficulty), fontWeight: 700 }}>
-                      {getDifficultyLabel(map.difficulty)}
+                    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, background: "#e74c3c22", border: "1px solid #e74c3c55", color: "#e74c3c", fontWeight: 700 }}>
+                      EXTREMO
                     </span>
                   </Box>
                   <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.4)", mt: 0.5 }}>{map.descPt}</Typography>
@@ -215,8 +215,8 @@ export default function ChallengesPage() {
                       <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>em</Typography>
                       <Typography sx={{ fontSize: 13, fontWeight: 600, color: map?.accentColor }}>{map?.namePt ?? ch.mapId}</Typography>
                       {map && (
-                        <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 6, background: `${getDifficultyColor(map.difficulty)}22`, border: `1px solid ${getDifficultyColor(map.difficulty)}55`, color: getDifficultyColor(map.difficulty), fontWeight: 700 }}>
-                          {getDifficultyLabel(map.difficulty)}
+                        <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 6, background: "#e74c3c22", border: "1px solid #e74c3c55", color: "#e74c3c", fontWeight: 700 }}>
+                          EXTREMO
                         </span>
                       )}
                     </Box>

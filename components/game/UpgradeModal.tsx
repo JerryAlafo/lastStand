@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { UpgradeCard, pickUpgradeOptions, RARITY_COLORS, RARITY_BORDER } from "@/lib/upgradeCards";
 import {
   Flame, Heart, Zap, Crosshair, Wind, ShieldCheck,
@@ -26,10 +26,30 @@ interface Props {
   wave: number;
   upgrades: string[];
   onPick: (id: string) => void;
+  onSkip?: () => void;
 }
 
-export default function UpgradeModal({ wave, upgrades, onPick }: Props) {
+export default function UpgradeModal({ wave, upgrades, onPick, onSkip }: Props) {
   const options = useMemo(() => pickUpgradeOptions(upgrades), [wave]); // eslint-disable-line
+  const [countdown, setCountdown] = useState(5);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          onSkip?.();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [onSkip]);
 
   return (
     <div style={{
@@ -37,6 +57,9 @@ export default function UpgradeModal({ wave, upgrades, onPick }: Props) {
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
       background: "rgba(5,0,20,0.88)", backdropFilter: "blur(18px)",
     }}>
+      <div style={{ position: "absolute", top: 20, right: 20, fontSize: 24, fontWeight: 900, color: countdown <= 2 ? "#e74c3c" : "rgba(255,255,255,0.3)", fontFamily: "monospace" }}>
+        {countdown}s
+      </div>
       <div style={{ fontSize: 13, letterSpacing: 3, color: "rgba(200,150,255,0.7)", textTransform: "uppercase", marginBottom: 8, fontFamily: "monospace" }}>
         Wave {wave - 1} concluída
       </div>
@@ -54,7 +77,7 @@ export default function UpgradeModal({ wave, upgrades, onPick }: Props) {
         {options.map((card: UpgradeCard) => (
           <button
             key={card.id}
-            onClick={() => onPick(card.id)}
+            onClick={() => { if (timerRef.current) clearInterval(timerRef.current); onPick(card.id); }}
             style={{
               flex: "1 1 180px", maxWidth: 220, padding: "24px 20px",
               background: RARITY_COLORS[card.rarity],

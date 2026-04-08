@@ -340,6 +340,7 @@ export default function StatsPage() {
               (tab === "solo" ||
                 (tab === "pvp" && data!.topPvp.length > 0)) && (
                 <Box
+                  onClick={() => router.push(`/perfil/${encodeURIComponent(champion.username)}`)}
                   sx={{
                     mb: 3,
                     p: "20px 24px",
@@ -358,6 +359,9 @@ export default function StatsPage() {
                     alignItems: "center",
                     gap: 3,
                     flexWrap: "wrap",
+                    cursor: "pointer",
+                    "&:hover": { background: tab === "solo" ? "rgba(255,215,0,0.09)" : "rgba(231,76,60,0.09)" },
+                    transition: "background 0.15s",
                   }}
                 >
                   <Box
@@ -406,14 +410,10 @@ export default function StatsPage() {
                           : "Líder PVP"}
                     </Typography>
                     <Typography
-                      onClick={() => router.push(`/perfil/${encodeURIComponent(champion.username)}`)}
                       sx={{
                         fontSize: 20,
                         fontWeight: 900,
                         color: tab === "solo" ? "#ffd700" : "#e74c3c",
-                        cursor: "pointer",
-                        "&:hover": { color: "#aa55ff" },
-                        transition: "color 0.2s",
                       }}
                     >
                       {champion.username}
@@ -657,11 +657,18 @@ export default function StatsPage() {
                       return (
                         <Box
                           key={p.username}
+                          onClick={() => router.push(`/perfil/${encodeURIComponent(p.username)}`)}
                           sx={{
                             display: "flex",
                             alignItems: "center",
                             gap: isMobile ? 1 : 2,
                             minWidth: 0,
+                            cursor: "pointer",
+                            borderRadius: 2,
+                            p: "6px 8px",
+                            mx: -1,
+                            "&:hover": { background: "rgba(123,47,247,0.12)" },
+                            transition: "background 0.15s",
                           }}
                         >
                           <Typography
@@ -678,7 +685,6 @@ export default function StatsPage() {
                           </Typography>
                           <Box sx={{ width: isMobile ? 80 : 120, flexShrink: 0, minWidth: 0 }}>
                             <Typography
-                              onClick={() => router.push(`/perfil/${encodeURIComponent(p.username)}`)}
                               sx={{
                                 fontSize: isMobile ? 13 : 14,
                                 fontWeight: 600,
@@ -686,9 +692,6 @@ export default function StatsPage() {
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
-                                cursor: "pointer",
-                                "&:hover": { color: "#aa55ff" },
-                                transition: "color 0.2s",
                               }}
                             >
                               {p.username}
@@ -804,11 +807,18 @@ export default function StatsPage() {
                     return (
                       <Box
                         key={p.username}
+                        onClick={() => router.push(`/perfil/${encodeURIComponent(p.username)}`)}
                         sx={{
                           display: "flex",
                           alignItems: "center",
                           gap: isMobile ? 1 : 2,
                           minWidth: 0,
+                          cursor: "pointer",
+                          borderRadius: 2,
+                          p: "6px 8px",
+                          mx: -1,
+                          "&:hover": { background: "rgba(231,76,60,0.12)" },
+                          transition: "background 0.15s",
                         }}
                       >
                         <Typography
@@ -825,7 +835,6 @@ export default function StatsPage() {
                         </Typography>
                         <Box sx={{ width: isMobile ? 80 : 120, flexShrink: 0, minWidth: 0 }}>
                           <Typography
-                            onClick={() => router.push(`/perfil/${encodeURIComponent(p.username)}`)}
                             sx={{
                               fontSize: isMobile ? 13 : 14,
                               fontWeight: 600,
@@ -833,9 +842,6 @@ export default function StatsPage() {
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
-                              cursor: "pointer",
-                              "&:hover": { color: "#aa55ff" },
-                              transition: "color 0.2s",
                             }}
                           >
                             {p.username}

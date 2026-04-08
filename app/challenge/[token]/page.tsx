@@ -9,7 +9,7 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { ArrowLeft, Swords, Clock, MapPin, Trophy, Share2, Play, AlertTriangle } from "lucide-react";
-import { getMapById, getDifficultyColor, getDifficultyLabel } from "@/lib/maps";
+import { getMapById } from "@/lib/maps";
 
 const GameScene = dynamic(() => import("@/components/game/GameScene"), { ssr: false, loading: () => <div style={{ width: "100vw", height: "100vh", background: "#0a0008", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "monospace" }}>A carregar...</div> });
 
@@ -141,8 +141,8 @@ export default function ChallengePage() {
             <MapPin size={16} color={map?.accentColor} />
             <Typography sx={{ fontSize: 16, fontWeight: 700 }}>{challenge.mapName}</Typography>
             {map && (
-              <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, background: `${getDifficultyColor(map.difficulty)}22`, border: `1px solid ${getDifficultyColor(map.difficulty)}55`, color: getDifficultyColor(map.difficulty), fontWeight: 700 }}>
-                {getDifficultyLabel(map.difficulty)}
+              <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 6, background: "#e74c3c22", border: "1px solid #e74c3c55", color: "#e74c3c", fontWeight: 700 }}>
+                EXTREMO
               </span>
             )}
           </Box>

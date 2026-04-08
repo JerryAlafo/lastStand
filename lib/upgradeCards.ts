@@ -12,7 +12,6 @@ export const UPGRADE_POOL: UpgradeCard[] = [
   { id: "damage_aura",    name: "Aura de Dano",          icon: "💜", rarity: "épico", desc: "Inimigos próximos perdem HP" },
   { id: "triple_shot",    name: "Tiro Extra",            icon: "🔱", rarity: "raro",  desc: "+1 bala permanente" },
   { id: "speed_boost",    name: "Impulso",               icon: "💨", rarity: "comum", desc: "+0.02 velocidade permanente" },
-  { id: "extra_hp",       name: "+1 HP Máximo",          icon: "❤️", rarity: "comum", desc: "Aumenta HP máximo em 1" },
   { id: "fast_reload",    name: "Carregamento Rápido",   icon: "⚡", rarity: "raro",  desc: "-4 frames entre disparos" },
   { id: "piercing",       name: "Bala Perfurante",       icon: "🎯", rarity: "épico", desc: "Balas atravessam inimigos" },
   { id: "magnet",         name: "Ímã de Power-ups",      icon: "🧲", rarity: "comum", desc: "Raio de coleta duplicado" },
@@ -24,12 +23,11 @@ export const UPGRADE_POOL: UpgradeCard[] = [
 const RARITY_WEIGHTS = { comum: 5, raro: 3, épico: 1 };
 
 export function pickUpgradeOptions(used: string[]): UpgradeCard[] {
-  // Allow stacking up to 3x for most upgrades, exclude max-stacked ones
   const counts = used.reduce<Record<string, number>>((a, id) => { a[id] = (a[id] ?? 0) + 1; return a; }, {});
   const available = UPGRADE_POOL.filter(c => (counts[c.id] ?? 0) < 3);
+  if (available.length === 0) return [];
   if (available.length < 3) return available.slice(0, 3);
 
-  // Weighted random pick without replacement
   const picked: UpgradeCard[] = [];
   const pool = [...available];
   while (picked.length < 3 && pool.length > 0) {
@@ -41,6 +39,11 @@ export function pickUpgradeOptions(used: string[]): UpgradeCard[] {
     }
   }
   return picked;
+}
+
+export function hasUpgradesAvailable(used: string[]): boolean {
+  const counts = used.reduce<Record<string, number>>((a, id) => { a[id] = (a[id] ?? 0) + 1; return a; }, {});
+  return UPGRADE_POOL.some(c => (counts[c.id] ?? 0) < 3);
 }
 
 export const RARITY_COLORS: Record<string, string> = {

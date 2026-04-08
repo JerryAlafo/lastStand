@@ -18,7 +18,7 @@ import {
   Magnet,
   CheckCircle2,
 } from "lucide-react";
-import { UPGRADE_POOL } from "@/lib/upgradeCards";
+import { UPGRADE_POOL, hasUpgradesAvailable } from "@/lib/upgradeCards";
 import { MultiProps } from "@/lib/gameTypes";
 import { ChallengeProps } from "./GameScene";
 import VirtualControls from "./VirtualControls";
@@ -52,7 +52,7 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
     hp, maxHp, score, kills, wave, xp, xpNext,
     activeEffects, running, gameOver, waveMessage,
     setRunning, reset, setWaveMessage,
-    upgrades, pendingUpgrade, applyUpgrade, selectedClass, setClass, blastCount, selectedMap, setMap,
+    upgrades, pendingUpgrade, applyUpgrade, setPendingUpgrade, selectedClass, setClass, blastCount, selectedMap, setMap,
   } = useGameStore();
 
   // Track if game has ever been started (to distinguish pause from main menu)
@@ -183,14 +183,23 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
   const upgradeToastTimer = useRef<ReturnType<typeof setTimeout>>();
 
   function handlePickUpgrade(id: string) {
-    applyUpgrade(id);
-    const card = UPGRADE_POOL.find(c => c.id === id);
-    if (card) {
-      setUpgradeToast(card.name);
-      clearTimeout(upgradeToastTimer.current);
-      upgradeToastTimer.current = setTimeout(() => setUpgradeToast(null), 2500);
+    if (id) {
+      applyUpgrade(id);
+      const card = UPGRADE_POOL.find(c => c.id === id);
+      if (card) {
+        setUpgradeToast(card.name);
+        clearTimeout(upgradeToastTimer.current);
+        upgradeToastTimer.current = setTimeout(() => setUpgradeToast(null), 2500);
+      }
     }
+    setPendingUpgrade(false);
   }
+
+  useEffect(() => {
+    if (pendingUpgrade && !hasUpgradesAvailable(upgrades)) {
+      setPendingUpgrade(false);
+    }
+  }, [pendingUpgrade, upgrades, setPendingUpgrade]);
 
   useEffect(() => {
     if (!session?.user?.username) return;
@@ -318,8 +327,8 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
       )}
 
       {/* ── Wave upgrade card picker ── */}
-      {pendingUpgrade && !gameOver && (
-        <UpgradeModal wave={wave} upgrades={upgrades} onPick={handlePickUpgrade} />
+      {pendingUpgrade && !gameOver && hasUpgradesAvailable(upgrades) && (
+        <UpgradeModal wave={wave} upgrades={upgrades} onPick={handlePickUpgrade} onSkip={() => setPendingUpgrade(false)} />
       )}
 
       {/* ── Upgrade selected toast ── */}

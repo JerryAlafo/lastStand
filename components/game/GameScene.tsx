@@ -629,7 +629,7 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
           if (bodyMesh?.material) (bodyMesh.material as THREE.MeshStandardMaterial).emissiveIntensity = en.hitTimer > 0 ? 2 : 0.25;
         }
         if (d < 1.0 && playerDmgTimer === 0) {
-          playerDmgTimer = 45; storeRef.current.damage(1);
+          playerDmgTimer = 25; storeRef.current.damage(1);
           spawnParticles(playerMesh.position.clone(), 0xe74c3c, 5);
           camera.position.x += (Math.random() - 0.5) * 0.6; camera.position.z += (Math.random() - 0.5) * 0.6;
         }
@@ -643,7 +643,7 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
           const edx = re.group.position.x - playerMesh.position.x;
           const edz = re.group.position.z - playerMesh.position.z;
           if (edx * edx + edz * edz < 1.0) {
-            playerDmgTimer = 45; storeRef.current.damage(1);
+            playerDmgTimer = 25; storeRef.current.damage(1);
             spawnParticles(playerMesh.position.clone(), 0xe74c3c, 5);
             camera.position.x += (Math.random() - 0.5) * 0.6; camera.position.z += (Math.random() - 0.5) * 0.6;
           }
