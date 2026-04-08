@@ -8,7 +8,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { ArrowLeft, Swords, Clock, MapPin, Trophy, Share2, Play, AlertTriangle, CheckCircle2, Zap, BarChart2, Crosshair } from "lucide-react";
+import { ArrowLeft, Swords, Clock, MapPin, Trophy, Share2, Play, AlertTriangle, CheckCircle2, Zap, BarChart2, Crosshair, Skull, RotateCcw } from "lucide-react";
 import { getMapById } from "@/lib/maps";
 
 const GameScene = dynamic(() => import("@/components/game/GameScene"), { ssr: false, loading: () => <div style={{ width: "100vw", height: "100vh", background: "#0a0008", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: "monospace" }}>A carregar...</div> });
@@ -45,6 +45,7 @@ export default function ChallengePage() {
   const [expired, setExpired] = useState(false);
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
   const [showCompletedModal, setShowCompletedModal] = useState(false);
+  const [challengeEnded, setChallengeEnded] = useState(false);
   const [lastScore, setLastScore] = useState(0);
 
   useEffect(() => {
@@ -74,6 +75,7 @@ export default function ChallengePage() {
 
   const handleGameOver = useCallback(async (score: number, wave: number, kills: number) => {
     if (!challenge) return;
+    setChallengeEnded(true);
     try {
       const res = await fetch(`/api/challenges/${encodeURIComponent(challenge.id)}/submit`, {
         method: "POST",
@@ -81,7 +83,7 @@ export default function ChallengePage() {
         body: JSON.stringify({ score, wave, kills }),
       });
       const data = await res.json();
-      if (data.beatRecord) {
+      if (data.completedAllTargets) {
         setLastScore(score);
         setShowCompletedModal(true);
       }
@@ -90,7 +92,7 @@ export default function ChallengePage() {
 
   const shareLink = typeof window !== "undefined" ? `${window.location.origin}/challenge?token=${token}` : "";
 
-  if (playing && challenge) {
+  if (playing && challenge && !challengeEnded) {
     return (
       <div style={{ width: "100vw", height: "100vh", overflow: "hidden", background: "#0a0008" }}>
         <GameScene challengeProps={{ challengeMode: true, mapId: challenge.mapId, challengeToken: token, seed: challenge.seed, onGameOver: handleGameOver }} />
@@ -135,6 +137,31 @@ export default function ChallengePage() {
           sx={{ background: "linear-gradient(135deg, #2ecc71, #27ae60)", color: "#fff", fontSize: 14, fontWeight: 700, borderRadius: 2, textTransform: "none", px: 4, py: 1.5 }}>
           Ver Desafios
         </Button>
+      </div>
+    );
+  }
+
+  if (challengeEnded) {
+    return (
+      <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 50% 35%, rgba(50,10,20,0.97) 0%, #0a0010 60%)", color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, fontFamily: "'Segoe UI', sans-serif", padding: 20, backdropFilter: "blur(16px)" }}>
+        <div style={{ position: "absolute", top: "12%", right: "10%", width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(231,76,60,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <Skull size={isMobile ? 42 : 56} color="#e74c3c" strokeWidth={1.5} />
+        <Typography sx={{ fontSize: isMobile ? 24 : 32, fontWeight: 900, color: "#e74c3c", textShadow: "0 0 28px #e74c3c99" }}>
+          ELIMINADO
+        </Typography>
+        <Box sx={{ textAlign: "center", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 3, p: "16px 32px" }}>
+          <Typography sx={{ fontSize: 14, color: "rgba(255,255,255,0.5)" }}>Não completaste os objectivos do desafio.</Typography>
+        </Box>
+        <Box sx={{ display: "flex", gap: 1.5, mt: 1 }}>
+          <Button onClick={() => { setChallengeEnded(false); setPlaying(true); }} variant="contained" startIcon={<RotateCcw size={16} />}
+            sx={{ background: "linear-gradient(135deg, #c0392b, #e74c3c)", color: "#fff", fontSize: 13, fontWeight: 700, borderRadius: 2, textTransform: "none", px: 3, py: 1.2 }}>
+            Tentar de Novo
+          </Button>
+          <Button onClick={() => router.push("/challenges")} variant="outlined" startIcon={<ArrowLeft size={16} />}
+            sx={{ color: "rgba(255,255,255,0.6)", borderColor: "rgba(255,255,255,0.15)", borderRadius: 2, textTransform: "none", px: 3, py: 1.2 }}>
+            Ver Desafios
+          </Button>
+        </Box>
       </div>
     );
   }

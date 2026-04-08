@@ -308,12 +308,24 @@ export default function ChallengesPage() {
                       )}
                     </Box>
                     <Box sx={{ display: "flex", gap: 1 }}>
-                      <Button size="small" onClick={() => copyLink(ch.id)} startIcon={copiedId === ch.id ? <Check size={12} /> : <Copy size={12} />}
-                        sx={{ color: "rgba(255,255,255,0.4)", fontSize: 11, textTransform: "none", minWidth: "auto", p: "4px 8px" }}>
-                        {copiedId === ch.id ? "Copiado" : "Partilhar"}
+                      <Button onClick={() => copyLink(ch.id)} startIcon={copiedId === ch.id ? <Check size={14} /> : <Copy size={14} />}
+                        sx={{ 
+                          color: copiedId === ch.id ? "#2ecc71" : "#fff", 
+                          background: copiedId === ch.id ? "rgba(46,204,113,0.2)" : "rgba(255,255,255,0.1)", 
+                          border: `1px solid ${copiedId === ch.id ? "rgba(46,204,113,0.5)" : "rgba(255,255,255,0.2)"}`,
+                          fontSize: 12, fontWeight: 600, textTransform: "none", minWidth: "auto", px: 2, py: 0.8, borderRadius: 1.5,
+                          "&:hover": { background: "rgba(255,255,255,0.15)" }
+                        }}>
+                        {copiedId === ch.id ? "Copiado!" : "Partilhar"}
                       </Button>
-                      <Button size="small" onClick={() => joinChallenge(ch.id)} startIcon={<Swords size={12} />}
-                        sx={{ color: ch.isCompleted ? "#888" : "#e74c3c", fontSize: 11, textTransform: "none", minWidth: "auto", p: "4px 8px" }}>
+                      <Button onClick={() => joinChallenge(ch.id)} startIcon={<Swords size={14} />}
+                        sx={{ 
+                          color: "#fff", 
+                          background: ch.isCompleted ? "rgba(136,136,136,0.3)" : "linear-gradient(135deg, #c0392b, #e74c3c)", 
+                          border: `1px solid ${ch.isCompleted ? "rgba(136,136,136,0.3)" : "rgba(231,76,60,0.5)"}`,
+                          fontSize: 12, fontWeight: 700, textTransform: "none", minWidth: "auto", px: 2.5, py: 0.8, borderRadius: 1.5,
+                          "&:hover": { background: ch.isCompleted ? "rgba(136,136,136,0.3)" : "linear-gradient(135deg, #a93226, #c0392b)" }
+                        }}>
                         Jogar
                       </Button>
                     </Box>

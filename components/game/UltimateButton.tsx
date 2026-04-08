@@ -45,8 +45,9 @@ export default function UltimateButton({ ultCharge, ultReady, ultActive, isMobil
 
       <Button
         onClick={() => {
-          window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyE" }));
-          window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyE" }));
+          const w = window as unknown as Record<string, unknown>;
+          const fn = w.__activateUlt as (() => void) | undefined;
+          if (fn) fn();
         }}
         disabled={!ultReady || ultActive}
         variant="contained"

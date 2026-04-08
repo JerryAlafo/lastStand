@@ -1,0 +1,3 @@
+{"id":"94512cf0","creator":"jerry_teste","mapId":"lava","seed":505,"score":620,"wave":3,"kills":36,"targetWaves":3,"createdAt":1775642062789,"expiresAt":1775728462789,"status":"completed","completedBy":"JoyBoy"}
+{"id":"9c855bc6","creator":"JoyBoy","mapId":"desert","seed":101,"score":600,"wave":3,"kills":36,"targetWaves":2,"createdAt":1775642968678,"expiresAt":1775729368678,"status":"completed","completedBy":"jerry_teste"}
+{"id":"3f62b225","creator":"jerry_teste","mapId":"arena","seed":42,"score":0,"wave":0,"kills":0,"targetWaves":2,"createdAt":1775643838729,"expiresAt":1775730238729,"status":"active"}

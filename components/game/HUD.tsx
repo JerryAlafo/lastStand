@@ -108,7 +108,18 @@ export default function HUD({
       .catch(() => {});
   }, [challengeProps]);
 
+  function saveProgress() {
+    if (!session?.user?.username) return;
+    if (challengeProps?.challengeMode) return;
+    fetch("/api/scores/save", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ score, wave, kills, blastCount }),
+    }).catch(() => {});
+  }
+
   function goToMenu() {
+    saveProgress();
     if (multiProps) {
       router.push("/multiplayer");
       return;
@@ -121,6 +132,16 @@ export default function HUD({
     setRunning(false);
     setHasEverStarted(false);
   }
+
+  const prevWaveRef = useRef(wave);
+  useEffect(() => {
+    if (!session?.user?.username) return;
+    if (challengeProps?.challengeMode) return;
+    if (wave > 1 && wave !== prevWaveRef.current) {
+      saveProgress();
+    }
+    prevWaveRef.current = wave;
+  }, [wave, session?.user?.username, challengeProps?.challengeMode]);
 
   // Mobile detection via (pointer: coarse) — correctly identifies touch-primary devices.
   const [isMobile, setIsMobile] = useState(false);
@@ -278,13 +299,15 @@ export default function HUD({
       }
     }
     setPendingUpgrade(false);
+    setRunning(true);
   }
 
   useEffect(() => {
     if (pendingUpgrade && !hasUpgradesAvailable(upgrades)) {
       setPendingUpgrade(false);
+      setRunning(true);
     }
-  }, [pendingUpgrade, upgrades, setPendingUpgrade]);
+  }, [pendingUpgrade, upgrades, setPendingUpgrade, setRunning]);
 
   useEffect(() => {
     if (!session?.user?.username) return;
@@ -461,7 +484,7 @@ export default function HUD({
           wave={wave}
           upgrades={upgrades}
           onPick={handlePickUpgrade}
-          onSkip={() => setPendingUpgrade(false)}
+          onSkip={() => { setPendingUpgrade(false); setRunning(true); }}
         />
       )}
 
@@ -1113,11 +1136,10 @@ export default function HUD({
         ))}
       </div>
 
-      {/* ── Pause modal (hidden in challenge mode) ── */}
+      {/* ── Pause modal ── */}
       {!running &&
         !gameOver &&
-        hasEverStarted &&
-        !challengeProps?.challengeMode && (
+        hasEverStarted && (
           <PauseModal
             wave={wave}
             score={score}
@@ -1177,7 +1199,7 @@ export default function HUD({
           />
         )}
 
-      {/* ── Game Over (solo / co-op; suppressed in PVP and Challenge mode) ── */}
+      {/* ── Game Over (solo / co-op only; challenge has its own modal) ── */}
       {gameOver && !pvpResult && !challengeProps?.challengeMode && (
         <GameOverScreen
           score={score}
@@ -1189,7 +1211,7 @@ export default function HUD({
             window.dispatchEvent(new CustomEvent("gameRestart"));
             reset();
           }}
-          onMenu={goToMenu}
+          onMenu={challengeProps?.challengeMode ? () => router.push("/challenges") : goToMenu}
           router={router}
         />
       )}

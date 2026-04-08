@@ -145,8 +145,9 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
     // Input
     const keys: Record<string, boolean> = {};
     (window as unknown as Record<string, unknown>).__keys = keys;
+    const isChallenge = !!challengeProps?.challengeMode;
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === "Escape" && e.type === "keydown") {
+      if (e.code === "Escape" && e.type === "keydown" && !isChallenge) {
         const s = storeRef.current;
         s.setRunning(!s.running);
         s.setWaveMessage(s.running ? "PAUSA" : "RETOMANDO...");
