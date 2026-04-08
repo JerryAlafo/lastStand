@@ -9,7 +9,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.png" type="image/png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -22,14 +22,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>{children}</Providers>
         <style>{`
           *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-          html { 
-            font-size: 16px; 
-            -webkit-text-size-adjust: 100%; 
-            touch-action: manipulation; 
-            overflow-x: hidden;
-            height: 100%;
-            position: fixed;
-            width: 100%;
+          html { font-size: 16px; -webkit-text-size-adjust: 100%; touch-action: manipulation; overflow-x: hidden; }
+          button, a { touch-action: manipulation; }
+          @media (max-width: 640px) {
+            .auth-card { padding: 28px 20px !important; }
           }
           body {
             font-family: 'Inter', 'Segoe UI', sans-serif;
@@ -37,23 +33,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             color: #fff;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            height: 100%;
-            overflow: hidden;
-            position: fixed;
-            width: 100%;
-          }
-          #__next {
-            height: 100%;
-            width: 100%;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-          }
-          button, a { touch-action: manipulation; }
-          @media (max-width: 640px) {
-            .auth-card { padding: 28px 20px !important; }
           }
           a { color: inherit; }
           ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -61,11 +40,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           ::-webkit-scrollbar-thumb { background: rgba(123,47,247,0.5); border-radius: 3px; }
           ::-webkit-scrollbar-thumb:hover { background: rgba(123,47,247,0.75); }
           ::selection { background: rgba(123,47,247,0.4); color: #fff; }
-          /* Safe area for notched phones */
-          .safe-top { padding-top: env(safe-area-inset-top, 0px); }
-          .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
-          .safe-left { padding-left: env(safe-area-inset-left, 0px); }
-          .safe-right { padding-right: env(safe-area-inset-right, 0px); }
         `}</style>
       </body>
     </html>
