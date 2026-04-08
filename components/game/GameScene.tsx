@@ -11,7 +11,7 @@ import { buildArena } from "@/lib/arenaBuilder";
 import { createSpawner } from "@/lib/gameSpawner";
 import { getMapById } from "@/lib/maps";
 
-const AR = 18;
+const AR = 18; // Legacy constant - no longer used for boundary checks
 
 export interface ChallengeProps {
   challengeMode: true;
@@ -109,7 +109,7 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
 
     // Magnet field ring — floor-level torus showing attraction radius
     const magnetRingMat = new THREE.MeshBasicMaterial({ color: 0x7b2ff7, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
-    const magnetRing = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.06, 6, 40), magnetRingMat);
+    const magnetRing = new THREE.Mesh(new THREE.TorusGeometry(2.0, 0.04, 6, 40), magnetRingMat);
     magnetRing.position.y = 0.05; magnetRing.rotation.x = Math.PI / 2;
     playerMesh.add(magnetRing);
 
@@ -459,7 +459,7 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
       playerMesh.position.x += (mx / md) * spd;
       playerMesh.position.z += (mz / md) * spd;
       const pd = Math.sqrt(playerMesh.position.x ** 2 + playerMesh.position.z ** 2);
-      if (pd > AR - 1) { playerMesh.position.x = (playerMesh.position.x / pd) * (AR - 1); playerMesh.position.z = (playerMesh.position.z / pd) * (AR - 1); }
+      if (pd > arenaRadius - 1) { playerMesh.position.x = (playerMesh.position.x / pd) * (arenaRadius - 1); playerMesh.position.z = (playerMesh.position.z / pd) * (arenaRadius - 1); }
       if (moving) playerMesh.rotation.y = Math.atan2(mx, mz);
       playerMesh.position.y = Math.abs(Math.sin(frame * 0.18)) * (moving ? 0.05 : 0);
 
@@ -660,12 +660,12 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
         const dx = pk.mesh.position.x - playerMesh.position.x;
         const dz = pk.mesh.position.z - playerMesh.position.z;
         const d2 = dx * dx + dz * dz;
-        const collectRange = hasMagnetUpgrade ? 4.84 : 1.21; // 2.2² or 1.1²
+        const collectRange = hasMagnetUpgrade ? 2.25 : 1.21; // 1.5² or 1.1²
 
-        // Magnet: attract pickups within radius 6 toward player
-        if (hasMagnetUpgrade && d2 < 36 && d2 > collectRange) {
+        // Magnet: attract pickups within radius 2.5 toward player
+        if (hasMagnetUpgrade && d2 < 6.25 && d2 > collectRange) {
           const d = Math.sqrt(d2);
-          const spd = 0.12 + (1 - d / 6) * 0.18; // faster when closer
+          const spd = 0.04 + (1 - d / 2.5) * 0.06;
           pk.mesh.position.x -= (dx / d) * spd;
           pk.mesh.position.z -= (dz / d) * spd;
         }
