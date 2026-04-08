@@ -87,7 +87,9 @@ export default function ChallengesPage() {
 
   function copyLink(id: string) {
     const url = `${window.location.origin}/challenge/${id}`;
-    navigator.clipboard?.writeText(url);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).catch(() => {});
+    }
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   }

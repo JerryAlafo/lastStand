@@ -33,10 +33,12 @@ export default function DonatePage() {
   const country = countries.find((c) => c.code === selected);
 
   function copyNumber() {
-    navigator.clipboard.writeText(MPESA_NUMBER).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(MPESA_NUMBER).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }).catch(() => {});
+    }
   }
 
   return (

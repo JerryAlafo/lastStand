@@ -732,7 +732,9 @@ export default function ChallengePage() {
         {status === "authenticated" && (
           <Button
             onClick={() => {
-              navigator.clipboard?.writeText(shareLink);
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shareLink).catch(() => {});
+              }
             }}
             variant="outlined"
             startIcon={<Share2 size={16} />}

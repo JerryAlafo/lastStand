@@ -51,10 +51,13 @@ function LobbyContent() {
   }, [fetchRoom]);
 
   async function copyLink() {
-    await navigator.clipboard.writeText(inviteUrl).catch(() => {
-      // fallback: prompt
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(inviteUrl).catch(() => {
+        window.prompt("Copia este link:", inviteUrl);
+      });
+    } else {
       window.prompt("Copia este link:", inviteUrl);
-    });
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   }
