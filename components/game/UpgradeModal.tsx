@@ -9,11 +9,10 @@ import {
 
 const UPGRADE_ICONS: Record<string, React.ReactNode> = {
   fire_bullets:  <Flame       size={36} />,
-  regen:         <Heart       size={36} />,
+  full_heal:     <Heart       size={36} />,
   damage_aura:   <Zap         size={36} />,
   triple_shot:   <Target      size={36} />,
   speed_boost:   <Wind        size={36} />,
-  extra_hp:      <Heart       size={36} />,
   fast_reload:   <RefreshCw   size={36} />,
   piercing:      <Crosshair   size={36} />,
   magnet:        <Magnet      size={36} />,

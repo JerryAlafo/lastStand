@@ -661,7 +661,7 @@ export default function HUD({ multiProps, challengeProps }: { multiProps?: Multi
           kills={kills}
           best={best}
           isMobile={isMobile}
-          onPlayAgain={() => reset()}
+          onPlayAgain={() => { window.dispatchEvent(new CustomEvent("gameRestart")); reset(); }}
           onMenu={goToMenu}
           router={router}
         />

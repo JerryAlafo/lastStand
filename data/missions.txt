@@ -1,6 +1,6 @@
 jerry_teste|2026-04-06|m4|2800
 jerry_teste|2026-04-06|m1|50
 jerry_teste|2026-04-06|m8|30
-jerry_teste|2026-04-08|m6|2
-jerry_teste|2026-04-08|m3|2
+jerry_teste|2026-04-08|m6|4
+jerry_teste|2026-04-08|m3|3
 jerry_teste|2026-04-08|m10|20

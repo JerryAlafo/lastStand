@@ -165,8 +165,6 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   startWave: () => set((s) => {
     const count = 10 + s.wave * 4
-    const regenCount = s.upgrades.filter(u => u === 'regen').length
-    const regenHeal = (s.wave % 3 === 0) ? regenCount : 0
     const shieldStart = s.upgrades.includes('shield_start')
     const effs = shieldStart
       ? { ...s.activeEffects, shield: Math.max(s.activeEffects.shield || 0, SHIELD_START_DURATION) }
@@ -175,7 +173,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       enemiesLeft: count, spawnQueue: count,
       spawnTimer: 0, waveTimer: 0,
       waveMessage: `WAVE ${s.wave}!`,
-      hp: Math.min(s.maxHp, s.hp + regenHeal),
       activeEffects: effs,
     }
   }),
@@ -215,6 +212,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const noRapidfire = !(s.activeEffects.rapidfire && s.activeEffects.rapidfire > 0)
     const noMultishot = !(s.activeEffects.multishot && s.activeEffects.multishot > 0)
     const noSpeed     = !(s.activeEffects.speed     && s.activeEffects.speed     > 0)
+    if (id === 'full_heal') { updates.hp = s.maxHp }
     if (id === 'triple_shot'  && noMultishot) updates.shotCount   = Math.min(4, s.shotCount + 1)
     if (id === 'fast_reload'  && noRapidfire) updates.fireRate    = Math.max(14, s.fireRate - 4)
     if (id === 'speed_boost'  && noSpeed)     updates.playerSpeed = s.playerSpeed + 0.015

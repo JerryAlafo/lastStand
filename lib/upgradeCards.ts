@@ -2,22 +2,21 @@ export interface UpgradeCard {
   id: string;
   name: string;
   desc: string;
-  icon: string;
   rarity: "comum" | "raro" | "épico";
 }
 
 export const UPGRADE_POOL: UpgradeCard[] = [
-  { id: "fire_bullets",   name: "Balas de Fogo",        icon: "🔥", rarity: "raro",  desc: "+1 dano por bala" },
-  { id: "regen",          name: "Regeneração",           icon: "💚", rarity: "comum", desc: "+1 HP a cada 3 waves" },
-  { id: "damage_aura",    name: "Aura de Dano",          icon: "💜", rarity: "épico", desc: "Inimigos próximos perdem HP" },
-  { id: "triple_shot",    name: "Tiro Extra",            icon: "🔱", rarity: "raro",  desc: "+1 bala permanente" },
-  { id: "speed_boost",    name: "Impulso",               icon: "💨", rarity: "comum", desc: "+0.02 velocidade permanente" },
-  { id: "fast_reload",    name: "Carregamento Rápido",   icon: "⚡", rarity: "raro",  desc: "-4 frames entre disparos" },
-  { id: "piercing",       name: "Bala Perfurante",       icon: "🎯", rarity: "épico", desc: "Balas atravessam inimigos" },
-  { id: "magnet",         name: "Ímã de Power-ups",      icon: "🧲", rarity: "comum", desc: "Raio de coleta duplicado" },
-  { id: "double_xp",      name: "XP Duplo",              icon: "⭐", rarity: "raro",  desc: "Dobra XP por morte" },
-  { id: "blast_charge",   name: "Fúria Rápida",          icon: "🌀", rarity: "raro",  desc: "Ult carrega 2x mais rápido" },
-  { id: "shield_start",   name: "Escudo Inicial",        icon: "🛡️", rarity: "épico", desc: "Começa cada wave com escudo" },
+  { id: "fire_bullets",   name: "Balas de Fogo",        rarity: "raro",  desc: "+1 dano por bala" },
+  { id: "full_heal",      name: "Curar HP",             rarity: "comum", desc: "Restaura HP para o máximo" },
+  { id: "damage_aura",    name: "Aura de Dano",          rarity: "épico", desc: "Inimigos próximos perdem HP" },
+  { id: "triple_shot",    name: "Tiro Extra",            rarity: "raro",  desc: "+1 bala permanente" },
+  { id: "speed_boost",    name: "Impulso",               rarity: "comum", desc: "+0.02 velocidade permanente" },
+  { id: "fast_reload",    name: "Carregamento Rápido",   rarity: "raro",  desc: "-4 frames entre disparos" },
+  { id: "piercing",       name: "Bala Perfurante",       rarity: "épico", desc: "Balas atravessam inimigos" },
+  { id: "magnet",         name: "Ímã de Power-ups",     rarity: "comum", desc: "Raio de coleta duplicado" },
+  { id: "double_xp",      name: "XP Duplo",              rarity: "raro",  desc: "Dobra XP por morte" },
+  { id: "blast_charge",   name: "Fúria Rápida",          rarity: "raro",  desc: "Ult carrega 2x mais rápido" },
+  { id: "shield_start",   name: "Escudo Inicial",        rarity: "épico", desc: "Começa cada wave com escudo" },
 ];
 
 const RARITY_WEIGHTS = { comum: 5, raro: 3, épico: 1 };

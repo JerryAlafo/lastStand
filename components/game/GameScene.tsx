@@ -726,6 +726,25 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
     };
     window.addEventListener("resize", onResize);
 
+    const onGameRestart = () => {
+      for (const e of enemies) scene.remove(e.mesh); enemies.length = 0;
+      for (const p of pickups) scene.remove(p.mesh); pickups.length = 0;
+      for (const b of bullets) scene.remove(b.mesh); bullets.length = 0;
+      if (ultShockwave) { scene.remove(ultShockwave); ultShockwave = null; }
+      playerMesh.position.set(0, 0, 0);
+      playerDmgTimer = 0;
+      frame = 0;
+      ultKills = 0;
+      ultActive = false;
+      ultTimer = 0;
+      dashFrames = 0;
+      deathSynced = false;
+      coopGameOverSent = false;
+      pendingRemoteHits = 0;
+      pendingEnemyHitsBuffer.length = 0;
+    };
+    window.addEventListener("gameRestart", onGameRestart);
+
     return () => {
       cancelAnimationFrame(raf);
       if (syncIntervalId) clearInterval(syncIntervalId);
@@ -737,6 +756,7 @@ export default function GameScene({ multiProps, challengeProps }: { multiProps?:
       window.removeEventListener("keyup", onKey);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("playerSettingsChanged", applyPlayerSettings);
+      window.removeEventListener("gameRestart", onGameRestart);
       const w = window as unknown as Record<string, unknown>;
       delete w.__keys; delete w.__activateUlt; delete w.__pvpCountdown;
       delete w.__pvpResult; delete w.__pvpRematch; delete w.__pvpRematchVote; delete w.__pvpTriggerReset;
