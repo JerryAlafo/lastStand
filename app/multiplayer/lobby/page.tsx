@@ -8,7 +8,7 @@ import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 import { Copy, Check, Users, Swords, Play, ArrowLeft } from "lucide-react";
-import type { Room } from "@/lib/fileStore";
+import type { Room } from "@/lib/supabase";
 
 function LobbyContent() {
   const router = useRouter();

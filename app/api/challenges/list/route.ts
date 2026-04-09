@@ -1,22 +1,13 @@
 import { NextResponse } from "next/server";
-import { readChallenges } from "@/lib/fileStore";
+import { getActiveChallenges } from "@/lib/db";
 
 export async function GET() {
   try {
-    const challenges = await readChallenges();
-    const now = Date.now();
-    const active = challenges
-      .filter(c => c.status === "active" && now < c.expiresAt)
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, 50);
+    const challenges = await getActiveChallenges();
 
-    const activeWithStatus = active.map(c => ({
-      ...c,
-      isCompleted: !!c.completedBy,
-    }));
-
-    return NextResponse.json({ challenges: activeWithStatus });
-  } catch {
+    return NextResponse.json({ challenges });
+  } catch (error) {
+    console.error("Error loading challenges:", error);
     return NextResponse.json({ error: "Falha ao carregar desafios." }, { status: 500 });
   }
 }

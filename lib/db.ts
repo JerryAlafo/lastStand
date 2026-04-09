@@ -99,8 +99,10 @@ export async function upsertUserLevel(ul: UserLevel) {
       user_id: ul.user_id,
       total_xp: ul.total_xp,
       level: ul.level,
-      selected_class: ul.selected_class,
+      selected_class: ul.selected_class ?? null,
       updated_at: new Date().toISOString(),
+    }, {
+      onConflict: "user_id",
     })
     .select()
     .single();
@@ -206,6 +208,8 @@ export async function upsertMissionProgress(userId: string, date: string, missio
       date,
       progress,
       updated_at: new Date().toISOString(),
+    }, {
+      onConflict: "user_id,mission_id,date",
     });
 
   if (error) {

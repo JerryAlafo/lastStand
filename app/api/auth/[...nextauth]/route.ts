@@ -18,7 +18,6 @@ const authOptions: NextAuthOptions = {
 
         const supabase = createServiceClient();
 
-        // Get user by username from profiles
         const { data: profile } = await supabase
           .from("profiles")
           .select("*")
@@ -27,7 +26,7 @@ const authOptions: NextAuthOptions = {
 
         if (!profile) return null;
 
-        // Get legacy user to verify password
+        // Try legacy user first
         const bcrypt = require("bcryptjs");
         const { data: legacyUser } = await supabase
           .from("users_legacy")
@@ -38,6 +37,27 @@ const authOptions: NextAuthOptions = {
         if (legacyUser) {
           const isValid = await bcrypt.compare(password, legacyUser.hashed_password);
           if (!isValid) return null;
+        } else {
+          // Try Supabase Auth user - use direct API call
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+          const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+          
+          const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": supabaseKey,
+              "Authorization": `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({
+              email: `${username}@laststand.local`,
+              password: password,
+            }),
+          });
+          
+          if (!response.ok) {
+            return null;
+          }
         }
 
         const user = {

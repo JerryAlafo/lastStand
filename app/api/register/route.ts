@@ -39,7 +39,6 @@ export async function POST(req: Request) {
     const ip = getClientIp(req);
     const userAgent = (req.headers.get("user-agent") ?? "unknown").slice(0, 250);
 
-    // Check if username already exists
     const { data: existingUser } = await supabase
       .from("profiles")
       .select("id")
@@ -50,7 +49,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Este username já existe." }, { status: 409 });
     }
 
-    // Create user in Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
@@ -68,7 +66,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Update profile with additional info
     if (authData.user) {
       await supabase
         .from("profiles")
@@ -77,6 +74,20 @@ export async function POST(req: Request) {
           user_agent: userAgent,
         })
         .eq("id", authData.user.id);
+
+      const { data: existingLevel } = await supabase
+        .from("user_levels")
+        .select("user_id")
+        .eq("user_id", authData.user.id)
+        .single();
+
+      if (!existingLevel) {
+        await supabase.from("user_levels").insert({
+          user_id: authData.user.id,
+          total_xp: 0,
+          level: 1,
+        });
+      }
     }
 
     console.log(`✅ User registered successfully: ${username}`);

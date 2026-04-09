@@ -1,6 +1,6 @@
 // In-memory live game state for active multiplayer rooms.
 // NOT persisted — only valid for the current server instance lifetime.
-// Acceptable for a game session; lobby state is persisted via fileStore.
+// Room metadata is persisted in Supabase; this is only for real-time game sync.
 
 export interface PlayerState {
   x: number;

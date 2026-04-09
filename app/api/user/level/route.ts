@@ -16,12 +16,16 @@ export async function GET(req: NextRequest) {
   const xpThisLevel   = xpForLevel(level);
   const xpNextLevel   = xpForLevel(level + 1);
   return NextResponse.json({
-    level, totalXp, selectedClass,
+    level,
+    totalXp,
+    selectedClass,
     title: getLevelTitle(level),
     color: getLevelColor(level),
-    xpThisLevel, xpNextLevel,
+    xpThisLevel,
+    xpNextLevel,
     xpProgress: totalXp - xpThisLevel,
-    xpNeeded:   Math.max(1, xpNextLevel - xpThisLevel),
+    xpNeeded: Math.max(1, xpNextLevel - xpThisLevel),
+    userClass: selectedClass,
   });
 }
 

@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { getMissionProgress } from "@/lib/fileStore";
+import { getMissionProgress } from "@/lib/db";
 import { getDailyMissions, getTodayDate } from "@/lib/levelSystem";
 
 export async function GET(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  const username = token?.username as string | undefined;
-  if (!username) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  const userId = token?.userId as string | undefined;
+  if (!userId) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
   const today    = getTodayDate();
   const missions = getDailyMissions(today);
-  const progress = await getMissionProgress(username, today);
+  const progress = await getMissionProgress(userId, today);
 
   const result = missions.map(m => ({
     ...m,

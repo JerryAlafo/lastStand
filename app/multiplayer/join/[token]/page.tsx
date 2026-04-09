@@ -10,7 +10,7 @@ import TextField from "@mui/material/TextField";
 import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
 import { Swords, Users, LogIn, UserPlus, Play } from "lucide-react";
-import type { Room } from "@/lib/fileStore";
+import type { Room } from "@/lib/supabase";
 
 type AuthTab = "login" | "register";
 

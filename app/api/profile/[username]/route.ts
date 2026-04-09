@@ -1,100 +1,75 @@
 import { NextResponse } from "next/server";
-import {
-  readUsersLines, readScoresLines, readAchievementsLines,
-  readLevelsLines, readPvpWinsLines, readWeeklyLines,
-} from "@/lib/fileStore";
-import { getLevelTitle, getLevelColor } from "@/lib/levelSystem";
-
-function getWeekId(): string {
-  const now = new Date();
-  const start = new Date(now);
-  start.setDate(now.getDate() - now.getDay() + 1);
-  return start.toISOString().split("T")[0];
-}
+import { createServiceClient } from "@/lib/supabase";
+import { getLevelTitle, getLevelColor, getWeekId } from "@/lib/levelSystem";
 
 export async function GET(_req: Request, { params }: { params: { username: string } }) {
   try {
+    const supabase = createServiceClient();
     const username = params.username;
 
-    const [userLines, scoreLines, levelLines, achLines, pvpLines, weeklyLines] = await Promise.all([
-      readUsersLines(),
-      readScoresLines(),
-      readLevelsLines(),
-      readAchievementsLines(),
-      readPvpWinsLines(),
-      readWeeklyLines(),
-    ]);
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", username)
+      .single();
 
-    const userExists = userLines.some(l => l.split("|")[0] === username);
-    if (!userExists) {
+    if (!profile) {
       return NextResponse.json({ error: "Jogador não encontrado." }, { status: 404 });
     }
 
-    const userScores = scoreLines
-      .map(l => {
-        const [u, s, w, k, ts] = l.split("|");
-        if (u !== username) return null;
-        return { score: Number(s) || 0, wave: Number(w) || 0, kills: Number(k) || 0, timestamp: Number(ts) || 0 };
-      })
-      .filter((r): r is NonNullable<typeof r> => r !== null)
-      .sort((a, b) => a.timestamp - b.timestamp);
+    const userId = profile.id;
 
-    const bestScore = Math.max(0, ...userScores.map(s => s.score));
-    const bestWave = Math.max(0, ...userScores.map(s => s.wave));
-    const totalKills = userScores.reduce((sum, s) => sum + s.kills, 0);
-    const gamesPlayed = userScores.length;
+    const [scoresResult, levelResult, achievementsResult, pvpResult, weeklyResult] = await Promise.all([
+      supabase.from("scores").select("*").eq("user_id", userId).order("created_at"),
+      supabase.from("user_levels").select("*").eq("user_id", userId).single(),
+      supabase.from("achievements").select("achievement_id").eq("user_id", userId),
+      supabase.from("pvp_wins").select("id", { count: "exact", head: true }).eq("user_id", userId),
+      supabase.from("weekly_scores").select("score").eq("user_id", userId).eq("week_start", getWeekId()),
+    ]);
 
-    const levelInfo = levelLines
-      .map(l => {
-        const [u, xpS, lvS, cls] = l.split("|");
-        if (u !== username) return null;
-        return { level: Number(lvS) || 1, totalXp: Number(xpS) || 0, selectedClass: cls || null };
-      })
-      .filter((r): r is NonNullable<typeof r> => r !== null)[0] ?? { level: 1, totalXp: 0, selectedClass: null };
+    const scores = scoresResult.data || [];
+    const levelInfo = levelResult.data;
+    const achievements = achievementsResult.data || [];
+    const pvpWins = pvpResult.count || 0;
+    const weeklyScores = weeklyResult.data || [];
 
-    const title = getLevelTitle(levelInfo.level);
-    const color = getLevelColor(levelInfo.level);
+    const bestScore = Math.max(0, ...scores.map(s => s.score || 0));
+    const bestWave = Math.max(0, ...scores.map(s => s.wave || 0));
+    const totalKills = scores.reduce((sum, s) => sum + (s.kills || 0), 0);
+    const gamesPlayed = scores.length;
+    const weeklyBest = Math.max(0, ...weeklyScores.map(s => s.score || 0));
 
-    const achievements = achLines
-      .filter(l => l.split("|")[0] === username)
-      .map(l => l.split("|")[1])
-      .filter(Boolean);
+    const level = levelInfo?.level || 1;
+    const totalXp = levelInfo?.total_xp || 0;
+    const selectedClass = levelInfo?.selected_class || null;
+    const title = getLevelTitle(level);
+    const color = getLevelColor(level);
 
-    const pvpWins = pvpLines.filter(l => l.split("|")[0] === username).length;
-
-    const weekId = getWeekId();
-    const weeklyBest = weeklyLines
-      .filter(l => {
-        const [u, , , , wk] = l.split("|");
-        return u === username && wk === weekId;
-      })
-      .map(l => Number(l.split("|")[1]) || 0)
-      .reduce((max, s) => Math.max(max, s), 0);
-
-    const scoreHistory = userScores.map(s => ({
+    const scoreHistory = scores.map(s => ({
       score: s.score,
       wave: s.wave,
       kills: s.kills,
-      date: new Date(s.timestamp).toISOString(),
+      date: s.created_at,
     }));
 
     return NextResponse.json({
       username,
-      level: levelInfo.level,
-      totalXp: levelInfo.totalXp,
+      level,
+      totalXp,
       title,
       color,
-      selectedClass: levelInfo.selectedClass,
+      selectedClass,
       bestScore,
       bestWave,
       totalKills,
       gamesPlayed,
       pvpWins,
       weeklyBest,
-      achievements,
+      achievements: achievements.map(a => a.achievement_id),
       scoreHistory,
     });
-  } catch {
+  } catch (error) {
+    console.error("Profile error:", error);
     return NextResponse.json({ error: "Falha ao carregar perfil." }, { status: 500 });
   }
 }

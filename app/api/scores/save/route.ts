@@ -13,11 +13,16 @@ import {
   getPvpWins,
   setPushMeta,
   getProfileByUsername,
+  getUserScores,
+  getTopScores,
+  getWeeklyScores,
+  getPushMeta,
 } from "@/lib/db";
 import {
   getLevel, xpForGame, getDailyMissions, getTodayDate,
-  getNewAchievements, getWeekId,
+  getNewAchievements, getWeekId, getWeekStartDate,
 } from "@/lib/levelSystem";
+import { broadcastPush } from "@/lib/push";
 
 export async function POST(req: NextRequest) {
   try {
@@ -38,12 +43,13 @@ export async function POST(req: NextRequest) {
 
     const today  = getTodayDate();
     const weekId = getWeekId();
+    const weekStartDate = getWeekStartDate();
 
     // 1. Save main score
     await saveScore(userId, score, wave, kills, blastCount, mapId);
 
     // 2. Save weekly score
-    await upsertWeeklyScore(userId, username, score, weekId);
+    await upsertWeeklyScore(userId, username, score, weekStartDate);
 
     // 3. XP + level
     const xpEarned = xpForGame(score, wave, kills);
@@ -68,7 +74,6 @@ export async function POST(req: NextRequest) {
     ]);
 
     // Get user's stats from scores for achievements
-    const { getUserScores } = await import("@/lib/db");
     const userScores = await getUserScores(userId, 100);
     const totalKills = userScores.reduce((s, p) => s + (p.kills || 0), 0);
     const bestScore  = userScores.reduce((s, p) => Math.max(s, p.score || 0), 0);
@@ -103,10 +108,9 @@ export async function POST(req: NextRequest) {
 
     // 6. Check for new #1 and broadcast push notification
     try {
-      const { getTopScores, getWeeklyScores, getPushMeta } = await import("@/lib/db");
       const [globalScores, weeklyScores] = await Promise.all([
         getTopScores(100),
-        getWeeklyScores(weekId, 100),
+        getWeeklyScores(weekStartDate, 100),
       ]);
 
       // Handle both old format (username at root) and new format (profiles relation)
@@ -117,7 +121,6 @@ export async function POST(req: NextRequest) {
       const currentGlobal = await getPushMeta("top1_global") || "";
       const currentWeekly = await getPushMeta("top1_weekly") || "";
 
-      const { broadcastPush } = await import("@/lib/push");
       const notifications: Promise<void>[] = [];
 
       if (globalTop && globalTop !== currentGlobal) {
@@ -151,6 +154,7 @@ export async function POST(req: NextRequest) {
       newLevel,
       levelUp,
       newAchievements,
+      selectedClass: ul?.selected_class ?? null,
     });
   } catch (error) {
     console.error("Score save error:", error);

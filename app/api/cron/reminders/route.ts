@@ -1,62 +1,56 @@
 import { NextResponse } from "next/server";
-import { readScoresLines, readPushSubs, readPushMeta, setPushMeta } from "@/lib/fileStore";
-import { broadcastPush } from "@/lib/push";
+import { createServiceClient } from "@/lib/supabase";
+import { setPushMeta, getPushMeta } from "@/lib/db";
+import { sendPushToUserById } from "@/lib/push";
 
-// This cron runs every 12 hours (see vercel.json).
-// It sends a re-engagement reminder to users who:
-//   - Have push subscriptions
-//   - Haven't played in >= 24 hours
-//   - Haven't received a reminder in the last 48 hours
-
-const MIN_INACTIVE_MS  = 24 * 60 * 60 * 1000;  // 24 h since last game
-const MIN_REMINDER_MS  = 48 * 60 * 60 * 1000;  // 48 h between reminders
+const MIN_INACTIVE_MS = 24 * 60 * 60 * 1000;
+const MIN_REMINDER_MS = 48 * 60 * 60 * 1000;
 
 export async function GET(req: Request) {
-  // Validate cron secret (Vercel sets Authorization: Bearer <CRON_SECRET>)
   const auth = req.headers ? new Headers(req.headers).get("authorization") : null;
   if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const supabase = createServiceClient();
   const now = Date.now();
-  const [scoreLines, subs, meta] = await Promise.all([
-    readScoresLines(),
-    readPushSubs(),
-    readPushMeta(),
-  ]);
 
-  // Build last-played map per user
+  const { data: subs } = await supabase.from("push_subscriptions").select("user_id");
+  const { data: scores } = await supabase
+    .from("scores")
+    .select("user_id, created_at")
+    .order("created_at", { ascending: false });
+
   const lastPlayed = new Map<string, number>();
-  for (const line of scoreLines) {
-    const [username, , , , tsS] = line.split("|");
-    const ts = Number(tsS) || 0;
-    if (username && ts > (lastPlayed.get(username) ?? 0)) {
-      lastPlayed.set(username, ts);
+  for (const s of scores || []) {
+    if (!s.user_id) continue;
+    const ts = new Date(s.created_at).getTime();
+    if (ts > (lastPlayed.get(s.user_id) ?? 0)) {
+      lastPlayed.set(s.user_id, ts);
     }
   }
 
   const remindedUsers: string[] = [];
 
-  for (const sub of subs) {
-    const lp = lastPlayed.get(sub.username) ?? 0;
+  for (const sub of subs || []) {
+    if (!sub.user_id) continue;
+    
+    const lp = lastPlayed.get(sub.user_id) ?? 0;
     const inactiveMs = now - lp;
-    if (inactiveMs < MIN_INACTIVE_MS) continue;  // still active
+    if (inactiveMs < MIN_INACTIVE_MS) continue;
 
-    const lastReminderKey = `reminder_${sub.username}`;
-    const lastReminder = Number(meta[lastReminderKey] ?? 0);
-    if (now - lastReminder < MIN_REMINDER_MS) continue;  // reminded too recently
+    const lastReminder = Number(await getPushMeta(`reminder_${sub.user_id}`) ?? 0);
+    if (now - lastReminder < MIN_REMINDER_MS) continue;
 
-    // Send individual reminder (fire & forget per user, errors swallowed by broadcastPush)
-    const { sendPushToUser } = await import("@/lib/push");
-    await sendPushToUser(sub.username, {
+    await sendPushToUserById(sub.user_id, {
       title: "Last Stand Arena",
       body: "Os monstros não esperam — volta à arena! O teu record pessoal está à espera de ser batido.",
       url: "/",
       tag: "lsa-reminder",
     });
 
-    await setPushMeta(lastReminderKey, String(now));
-    remindedUsers.push(sub.username);
+    await setPushMeta(`reminder_${sub.user_id}`, String(now));
+    remindedUsers.push(sub.user_id);
   }
 
   return NextResponse.json({ ok: true, reminded: remindedUsers.length, users: remindedUsers });

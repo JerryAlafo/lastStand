@@ -1,27 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { getRoom } from "@/lib/fileStore";
+import { getRoomByToken } from "@/lib/db";
 import {
   getRoomLive, setPlayerLive, addPendingHits, consumePendingHits,
   type PlayerState, type EnemySync, type PickupSync, type BulletSync,
 } from "@/lib/roomState";
 
-// GET — fetch both players' live states
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const live = getRoomLive(params.id);
   return NextResponse.json({ host: live.host, guest: live.guest });
 }
 
-// POST — push my live state; optionally queue hits on the remote player
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  if (!token?.username) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  const userId = token?.userId as string | undefined;
+  const username = token?.username as string | undefined;
+  if (!username || !userId) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
-  const room = await getRoom(params.id);
+  const room = await getRoomByToken(params.id);
   if (!room) return NextResponse.json({ error: "Sala não encontrada." }, { status: 404 });
 
-  const username = token.username as string;
-  const role = room.host === username ? "host" : room.guest === username ? "guest" : null;
+  const role = room.host_id === userId || room.host === username ? "host" 
+    : room.guest_id === userId || room.guest === username ? "guest" : null;
   if (!role) return NextResponse.json({ error: "Não és membro desta sala." }, { status: 403 });
 
   const body = (await req.json()) as Partial<PlayerState> & {

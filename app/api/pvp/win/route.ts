@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { appendPvpWinLine } from "@/lib/fileStore";
+import { addPvpWin } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  if (!token?.username) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  const userId = token?.userId as string | undefined;
+  if (!userId) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
-  const username = token.username as string;
-  // Each line: username|timestamp
-  await appendPvpWinLine(`${username}|${Date.now()}`);
+  await addPvpWin(userId);
   return NextResponse.json({ ok: true });
 }

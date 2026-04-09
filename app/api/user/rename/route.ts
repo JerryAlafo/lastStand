@@ -1,41 +1,43 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
-import { readUsersLines, getUsersPath } from "@/lib/fileStore";
-import fs from "node:fs/promises";
+import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { createServiceClient } from "@/lib/supabase";
 
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.username) {
+export async function POST(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const userId = token?.userId as string | undefined;
+  const currentUsername = token?.username as string | undefined;
+  if (!userId || !currentUsername) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
 
   const body = (await req.json()) as { newUsername?: string };
   const raw = body.newUsername?.trim() ?? "";
-  // Allow letters, numbers, underscores; 3–20 chars
   const clean = raw.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
 
-  if (clean.length < 3)  return NextResponse.json({ error: "Username deve ter pelo menos 3 caracteres." }, { status: 400 });
+  if (clean.length < 3) return NextResponse.json({ error: "Username deve ter pelo menos 3 caracteres." }, { status: 400 });
   if (clean.length > 20) return NextResponse.json({ error: "Username não pode ter mais de 20 caracteres." }, { status: 400 });
+  if (clean === currentUsername) return NextResponse.json({ error: "É o teu username actual." }, { status: 400 });
 
-  const current = session.user.username;
-  if (clean === current) return NextResponse.json({ error: "É o teu username actual." }, { status: 400 });
+  const supabase = createServiceClient();
 
-  const lines = await readUsersLines();
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("username", clean)
+    .single();
 
-  if (lines.some((l) => l.split("|")[0].toLowerCase() === clean)) {
+  if (existing) {
     return NextResponse.json({ error: "Username já existe." }, { status: 409 });
   }
 
-  const newLines = lines.map((l) => {
-    const parts = l.split("|");
-    if (parts[0] === current) {
-      parts[0] = clean;
-      return parts.join("|");
-    }
-    return l;
-  });
+  const { error } = await supabase
+    .from("profiles")
+    .update({ username: clean })
+    .eq("id", userId);
 
-  await fs.writeFile(getUsersPath(), newLines.join("\n") + "\n", "utf-8");
+  if (error) {
+    return NextResponse.json({ error: "Falha ao atualizar username." }, { status: 500 });
+  }
+
   return NextResponse.json({ ok: true, username: clean });
 }
