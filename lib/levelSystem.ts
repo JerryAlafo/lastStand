@@ -51,9 +51,11 @@ export function getWeekId(date = new Date()): string {
 }
 
 export function getWeekStartDate(date = new Date()): string {
-  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  return d.toISOString().split("T")[0];
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d.setDate(diff));
+  return monday.toISOString().split("T")[0];
 }
 
 // ── Daily missions ─────────────────────────────────────────────────────────────
@@ -92,7 +94,11 @@ export function getDailyMissions(dateStr: string): MissionDef[] {
 }
 
 export function getTodayDate(): string {
-  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 // ── Achievements ───────────────────────────────────────────────────────────────

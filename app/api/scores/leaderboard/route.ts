@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getTopScores } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const scores = await getTopScores(100);
 

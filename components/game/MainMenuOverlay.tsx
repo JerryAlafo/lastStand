@@ -219,7 +219,7 @@ export default function MainMenuOverlay({
       </div>
 
       {/* Level + XP bar */}
-      {levelInfo && (
+      {levelInfo ? (
         <div style={{ marginBottom: 16, position: "relative", zIndex: 1, textAlign: "center" }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: levelInfo.color, fontFamily: "monospace", letterSpacing: 1 }}>
             Nv.{levelInfo.level} · {levelInfo.title}
@@ -230,6 +230,27 @@ export default function MainMenuOverlay({
           <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "monospace" }}>
             {levelInfo.xpProgress}/{levelInfo.xpNeeded} XP
           </span>
+        </div>
+      ) : (
+        <div style={{ marginBottom: 16, position: "relative", zIndex: 1, textAlign: "center" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.3)", fontFamily: "monospace", letterSpacing: 1 }}>
+            A carregar...
+          </span>
+          <div style={{ 
+            width: 160, 
+            height: 4, 
+            background: "rgba(255,255,255,0.08)", 
+            borderRadius: 2, 
+            margin: "6px auto 0",
+            overflow: "hidden"
+          }}>
+            <div style={{ 
+              height: "100%", 
+              borderRadius: 2, 
+              background: "rgba(255,255,255,0.15)", 
+              width: "100%", 
+            }} />
+          </div>
         </div>
       )}
 

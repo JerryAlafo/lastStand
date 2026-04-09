@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { getWeeklyScores } from "@/lib/db";
 import { getWeekId, getWeekStartDate } from "@/lib/levelSystem";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const currentWeek = getWeekId();
   const currentWeekStart = getWeekStartDate();
+  
   const scores = await getWeeklyScores(currentWeekStart, 100);
 
   const formatted = scores.map((s: any, i: number) => ({

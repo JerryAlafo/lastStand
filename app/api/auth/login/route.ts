@@ -16,7 +16,6 @@ export async function POST(req: Request) {
 
     const supabase = createServiceClient();
 
-    // First check Supabase profiles for the user
     const { data: profile } = await supabase
       .from("profiles")
       .select("*")
@@ -25,20 +24,11 @@ export async function POST(req: Request) {
 
     if (!profile) {
       return NextResponse.json(
-        { error: "Utilizador não encontrado." },
+        { error: "Credenciais inválidas." },
         { status: 401 },
       );
     }
 
-    // Verify password using Supabase Admin Auth
-    // We need to use a custom verification since we're not using email-based auth
-    const { error: signInError } = await supabase.auth.admin.generateLink({
-      type: "magiclink",
-      email: profile.username + "@laststand.local",
-    }).catch(() => ({ error: null }));
-
-    // For legacy users, we'll check against the users_legacy table
-    // If not found there, check if this is a Supabase Auth user
     const { data: legacyUser } = await supabase
       .from("users_legacy")
       .select("*")
@@ -46,18 +36,16 @@ export async function POST(req: Request) {
       .single();
 
     if (legacyUser) {
-      // Verify bcrypt password
       const bcrypt = require("bcryptjs");
       const isValid = await bcrypt.compare(password, legacyUser.hashed_password);
       
       if (!isValid) {
         return NextResponse.json(
-          { error: "Username ou senha inválidos." },
+          { error: "Credenciais inválidas." },
           { status: 401 },
         );
       }
 
-      // Return user data for NextAuth
       return NextResponse.json({
         ok: true,
         user: {
@@ -71,20 +59,45 @@ export async function POST(req: Request) {
       });
     }
 
-    // If not a legacy user, check if Supabase Auth has this user
-    // This requires email-based auth which we haven't fully migrated to
-    // For now, return error for non-legacy users
-    return NextResponse.json(
-      { error: "Por favor, registe-se novamente com esta conta." },
-      { status: 401 },
-    );
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    
+    const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": supabaseKey,
+        "Authorization": `Bearer ${supabaseKey}`,
+      },
+      body: JSON.stringify({
+        email: `${username}@laststand.local`,
+        password: password,
+      }),
+    });
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: "Credenciais inválidas." },
+        { status: 401 },
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      user: {
+        id: profile.id,
+        userId: profile.id,
+        username: profile.username,
+        createdAt: profile.created_at,
+        ip: profile.ip || "",
+        userAgent: profile.user_agent || "",
+      },
+    });
 
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error("❌ Login error:", errorMsg);
     return NextResponse.json(
-      { error: `Falha ao fazer login: ${errorMsg}` },
-      { status: 500 },
+      { error: "Credenciais inválidas." },
+      { status: 401 },
     );
   }
 }

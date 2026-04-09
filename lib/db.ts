@@ -36,6 +36,7 @@ export async function getTopScores(limit = 10) {
     .from("scores")
     .select(`
       id,
+      user_id,
       score,
       wave,
       kills,
@@ -43,9 +44,18 @@ export async function getTopScores(limit = 10) {
       created_at,
       profiles:user_id (username)
     `)
-    .order("score", { ascending: false })
-    .limit(limit);
-  return data || [];
+    .order("score", { ascending: false });
+
+  if (!data || data.length === 0) return [];
+
+  const seen = new Set<string>();
+  const unique = data.filter((s) => {
+    if (seen.has(s.user_id)) return false;
+    seen.add(s.user_id);
+    return true;
+  });
+
+  return unique.slice(0, limit);
 }
 
 export async function getUserScores(userId: string, limit = 10) {
@@ -145,19 +155,36 @@ export async function unlockAchievement(userId: string, achievementId: string) {
 // ─────────────────────────────────────────
 
 export async function getWeeklyScores(weekStart: string, limit = 100) {
-  const { data } = await supabase
+  const supabase = createServiceClient();
+  
+  const { data, error } = await supabase
     .from("weekly_scores")
     .select(`
       id,
       username,
       score,
       week_start,
-      profiles:user_id (id)
+      user_id
     `)
-    .eq("week_start", weekStart)
-    .order("score", { ascending: false })
-    .limit(limit);
-  return data || [];
+    .order("score", { ascending: false });
+    
+  if (error) {
+    console.error("Error getting weekly scores:", error);
+    return [];
+  }
+  
+  const filtered = (data || []).filter(s => s.week_start === weekStart);
+  const seen = new Set<string>();
+  const unique: typeof filtered = [];
+  
+  for (const s of filtered) {
+    if (!seen.has(s.user_id)) {
+      seen.add(s.user_id);
+      unique.push(s);
+    }
+  }
+  
+  return unique.slice(0, limit);
 }
 
 export async function upsertWeeklyScore(userId: string, username: string, score: number, weekStart: string) {

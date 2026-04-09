@@ -67,13 +67,18 @@ export async function POST(req: Request) {
     }
 
     if (authData.user) {
-      await supabase
+      const { error: profileError } = await supabase
         .from("profiles")
-        .update({
+        .upsert({
+          id: authData.user.id,
+          username: username,
           ip,
           user_agent: userAgent,
-        })
-        .eq("id", authData.user.id);
+        });
+
+      if (profileError) {
+        console.error("Error creating profile:", profileError);
+      }
 
       const { data: existingLevel } = await supabase
         .from("user_levels")
@@ -82,7 +87,7 @@ export async function POST(req: Request) {
         .single();
 
       if (!existingLevel) {
-        await supabase.from("user_levels").insert({
+        await supabase.from("user_levels").upsert({
           user_id: authData.user.id,
           total_xp: 0,
           level: 1,
