@@ -1,7 +1,10 @@
 import { createServiceClient } from "./supabase";
 import type { Challenge, Room, UserLevel } from "./supabase";
 
-const supabase = createServiceClient();
+// Always create a fresh client per call — prevents Next.js fetch cache from
+// serving stale Supabase responses across different requests.
+function db() { return createServiceClient(); }
+const supabase = db();
 
 export { Challenge, Room, UserLevel };
 
@@ -32,7 +35,7 @@ export async function getProfileById(id: string) {
 // ─────────────────────────────────────────
 
 export async function getTopScores(limit = 10) {
-  const { data } = await supabase
+  const { data, error } = await db()
     .from("scores")
     .select(`
       id,
@@ -40,12 +43,12 @@ export async function getTopScores(limit = 10) {
       score,
       wave,
       kills,
-      map_id,
       created_at,
       profiles:user_id (username)
     `)
     .order("score", { ascending: false });
 
+  if (error) { console.error("getTopScores error:", error); return []; }
   if (!data || data.length === 0) return [];
 
   const seen = new Set<string>();
@@ -59,12 +62,13 @@ export async function getTopScores(limit = 10) {
 }
 
 export async function getUserScores(userId: string, limit = 10) {
-  const { data } = await supabase
+  const { data, error } = await db()
     .from("scores")
-    .select("*")
+    .select("id, user_id, score, wave, kills, blast_count, map_id, created_at")
     .eq("user_id", userId)
     .order("score", { ascending: false })
     .limit(limit);
+  if (error) { console.error("getUserScores error:", error); return []; }
   return data || [];
 }
 
@@ -155,57 +159,50 @@ export async function unlockAchievement(userId: string, achievementId: string) {
 // ─────────────────────────────────────────
 
 export async function getWeeklyScores(weekStart: string, limit = 100) {
-  const supabase = createServiceClient();
-  
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from("weekly_scores")
-    .select(`
-      id,
-      username,
-      score,
-      week_start,
-      user_id
-    `)
-    .order("score", { ascending: false });
-    
-  if (error) {
-    console.error("Error getting weekly scores:", error);
-    return [];
-  }
-  
-  const filtered = (data || []).filter(s => s.week_start === weekStart);
-  const seen = new Set<string>();
-  const unique: typeof filtered = [];
-  
-  for (const s of filtered) {
-    if (!seen.has(s.user_id)) {
-      seen.add(s.user_id);
-      unique.push(s);
-    }
-  }
-  
-  return unique.slice(0, limit);
+    .select("id, username, score, week_start, user_id")
+    .eq("week_start", weekStart)
+    .order("score", { ascending: false })
+    .limit(limit);
+
+  if (error) { console.error("getWeeklyScores error:", error); return []; }
+  return data || [];
 }
 
 export async function upsertWeeklyScore(userId: string, username: string, score: number, weekStart: string) {
-  const { data, error } = await supabase
+  const supabase = createServiceClient();
+
+  // Only keep the best score for the week
+  const { data: existing } = await supabase
     .from("weekly_scores")
-    .upsert({
-      user_id: userId,
-      username,
-      score,
-      week_start: weekStart,
-    }, {
-      onConflict: "user_id,week_start",
-    })
-    .select()
+    .select("id, score")
+    .eq("user_id", userId)
+    .eq("week_start", weekStart)
     .single();
 
-  if (error) {
-    console.error("Error upserting weekly score:", error);
-    throw error;
+  if (!existing) {
+    const { data, error } = await supabase
+      .from("weekly_scores")
+      .insert({ user_id: userId, username, score, week_start: weekStart })
+      .select()
+      .single();
+    if (error) { console.error("Error inserting weekly score:", error); throw error; }
+    return data;
   }
-  return data;
+
+  if (score > existing.score) {
+    const { data, error } = await supabase
+      .from("weekly_scores")
+      .update({ score, username })
+      .eq("id", existing.id)
+      .select()
+      .single();
+    if (error) { console.error("Error updating weekly score:", error); throw error; }
+    return data;
+  }
+
+  return existing;
 }
 
 // ─────────────────────────────────────────

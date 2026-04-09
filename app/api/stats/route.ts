@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getLevelTitle, getLevelColor } from "@/lib/levelSystem";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const supabase = createServiceClient();
 
