@@ -409,17 +409,17 @@ export default function MainMenuOverlay({
           maxWidth: 380,
         }}
       >
-        {/* Multiplayer — destaque com glow */}
+        {/* Multiplayer — temporariamente bloqueado */}
         <button
-          onClick={() => router.push("/multiplayer")}
+          disabled
           style={{
             padding: "10px 12px",
             borderRadius: 8,
-            border: "1px solid rgba(123,47,247,0.5)",
-            background: "rgba(123,47,247,0.15)",
-            color: "rgba(200,150,255,0.9)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            background: "rgba(255,255,255,0.03)",
+            color: "rgba(255,255,255,0.25)",
             fontSize: 12,
-            cursor: "pointer",
+            cursor: "not-allowed",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -428,17 +428,6 @@ export default function MainMenuOverlay({
             fontWeight: 700,
             backdropFilter: "blur(8px)",
             transition: "all 0.15s",
-            boxShadow: "0 0 12px rgba(123,47,247,0.2)",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "rgba(123,47,247,0.28)";
-            (e.currentTarget as HTMLButtonElement).style.color = "#aa55ff";
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 20px rgba(123,47,247,0.4)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "rgba(123,47,247,0.15)";
-            (e.currentTarget as HTMLButtonElement).style.color = "rgba(200,150,255,0.9)";
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 12px rgba(123,47,247,0.2)";
           }}
         >
           <Users size={13} /> Multiplayer
@@ -449,9 +438,9 @@ export default function MainMenuOverlay({
           style={{
             padding: "10px 12px",
             borderRadius: 8,
-            border: "1px solid rgba(255,165,0,0.4)",
-            background: "rgba(255,165,0,0.1)",
-            color: "rgba(255,200,100,0.9)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.05)",
+            color: "rgba(255,255,255,0.6)",
             fontSize: 12,
             cursor: "pointer",
             display: "flex",
@@ -462,17 +451,14 @@ export default function MainMenuOverlay({
             fontWeight: 700,
             backdropFilter: "blur(8px)",
             transition: "all 0.15s",
-            boxShadow: "0 0 12px rgba(255,165,0,0.15)",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,165,0,0.22)";
-            (e.currentTarget as HTMLButtonElement).style.color = "#ffd700";
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 20px rgba(255,165,0,0.3)";
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.1)";
+            (e.currentTarget as HTMLButtonElement).style.color = "#fff";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,165,0,0.1)";
-            (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,200,100,0.9)";
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 12px rgba(255,165,0,0.15)";
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.05)";
+            (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.6)";
           }}
         >
           <Target size={13} /> Desafios
@@ -493,6 +479,7 @@ export default function MainMenuOverlay({
             justifyContent: "center",
             gap: 6,
             fontFamily: "inherit",
+            fontWeight: 700,
             backdropFilter: "blur(8px)",
             transition: "all 0.15s",
           }}
@@ -512,9 +499,9 @@ export default function MainMenuOverlay({
           style={{
             padding: "10px 12px",
             borderRadius: 8,
-            border: "1px solid rgba(255,215,0,0.2)",
-            background: "rgba(255,215,0,0.05)",
-            color: "rgba(255,215,0,0.7)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.05)",
+            color: "rgba(255,255,255,0.6)",
             fontSize: 12,
             cursor: "pointer",
             display: "flex",
@@ -522,16 +509,17 @@ export default function MainMenuOverlay({
             justifyContent: "center",
             gap: 6,
             fontFamily: "inherit",
+            fontWeight: 700,
             backdropFilter: "blur(8px)",
             transition: "all 0.15s",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,215,0,0.12)";
-            (e.currentTarget as HTMLButtonElement).style.color = "#ffd700";
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.1)";
+            (e.currentTarget as HTMLButtonElement).style.color = "#fff";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,215,0,0.05)";
-            (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,215,0,0.7)";
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.05)";
+            (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.6)";
           }}
         >
           <Trophy size={13} /> Leaderboard
@@ -541,9 +529,9 @@ export default function MainMenuOverlay({
           style={{
             padding: "10px 12px",
             borderRadius: 8,
-            border: "1px solid rgba(170,85,255,0.2)",
-            background: "rgba(123,47,247,0.06)",
-            color: "rgba(170,85,255,0.7)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.05)",
+            color: "rgba(255,255,255,0.6)",
             fontSize: 12,
             cursor: "pointer",
             display: "flex",
@@ -551,16 +539,17 @@ export default function MainMenuOverlay({
             justifyContent: "center",
             gap: 6,
             fontFamily: "inherit",
+            fontWeight: 700,
             backdropFilter: "blur(8px)",
             transition: "all 0.15s",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "rgba(123,47,247,0.14)";
-            (e.currentTarget as HTMLButtonElement).style.color = "#aa55ff";
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.1)";
+            (e.currentTarget as HTMLButtonElement).style.color = "#fff";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "rgba(123,47,247,0.06)";
-            (e.currentTarget as HTMLButtonElement).style.color = "rgba(170,85,255,0.7)";
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.05)";
+            (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.6)";
           }}
         >
           <User size={13} /> Perfil
@@ -570,9 +559,9 @@ export default function MainMenuOverlay({
           style={{
             padding: "10px 12px",
             borderRadius: 8,
-            border: "1px solid rgba(255,100,150,0.25)",
-            background: "rgba(255,80,120,0.06)",
-            color: "rgba(255,150,180,0.75)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.05)",
+            color: "rgba(255,255,255,0.6)",
             fontSize: 12,
             cursor: "pointer",
             display: "flex",
@@ -580,16 +569,17 @@ export default function MainMenuOverlay({
             justifyContent: "center",
             gap: 6,
             fontFamily: "inherit",
+            fontWeight: 700,
             backdropFilter: "blur(8px)",
             transition: "all 0.15s",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,80,120,0.14)";
-            (e.currentTarget as HTMLButtonElement).style.color = "#ff99bb";
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.1)";
+            (e.currentTarget as HTMLButtonElement).style.color = "#fff";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,80,120,0.06)";
-            (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,150,180,0.75)";
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.05)";
+            (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.6)";
           }}
         >
           <Heart size={13} /> Apoiar
