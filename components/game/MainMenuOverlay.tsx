@@ -53,9 +53,10 @@ export default function MainMenuOverlay({
   const [showMaps, setShowMaps] = useState(false);
   const mapId = selectedMap ?? "arena";
   const subscribedRef = useRef(false);
+  const supportsNotification = typeof Notification !== "undefined";
 
   useEffect(() => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    if (!supportsNotification || !("serviceWorker" in navigator) || !("PushManager" in window)) {
       setPushState("unsupported"); return;
     }
     if (Notification.permission === "denied") { setPushState("denied"); return; }
@@ -78,7 +79,7 @@ export default function MainMenuOverlay({
           return;
         }
 
-        if (Notification.permission === "granted" && d.publicKey) {
+        if (supportsNotification && Notification.permission === "granted" && d.publicKey) {
           const reg = await navigator.serviceWorker.register("/sw.js");
           await navigator.serviceWorker.ready;
           let sub = await reg.pushManager.getSubscription();
@@ -98,14 +99,14 @@ export default function MainMenuOverlay({
   }, []);
 
   const pushActive = pushState === "subscribed";
-  const pushReady = pushActive || Notification.permission === "granted";
+  const pushReady = pushActive || (supportsNotification && Notification.permission === "granted");
 
   async function togglePush() {
     if (pushLoading || pushState === "unsupported" || pushState === "denied") return;
     setPushLoading(true);
     try {
       if (pushState === "idle") {
-        const perm = await Notification.requestPermission();
+        const perm = supportsNotification ? await Notification.requestPermission() : "denied";
         if (perm !== "granted") { setPushState("denied"); return; }
         const pubKeyRes = await fetch("/api/push/subscribe");
         const { publicKey } = await pubKeyRes.json() as { publicKey: string };
