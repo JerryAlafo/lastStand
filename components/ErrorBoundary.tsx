@@ -46,6 +46,9 @@ export default class ErrorBoundary extends Component<Props, State> {
         }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
           <h1 style={{ fontSize: 24, marginBottom: 12, color: "#ff6b6b" }}>Algo correu mal</h1>
+          <p style={{ color: "rgba(255,255,255,0.8)", marginBottom: 12, fontSize: 14 }}>
+            {this.state.error?.message || "Erro desconhecido"}
+          </p>
           <p style={{ color: "rgba(255,255,255,0.6)", marginBottom: 24 }}>
             Por favor, recarrega a página.
           </p>
