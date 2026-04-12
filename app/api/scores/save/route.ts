@@ -23,6 +23,7 @@ import {
   getNewAchievements, getWeekId, getWeekStartDate,
 } from "@/lib/levelSystem";
 import { broadcastPush } from "@/lib/push";
+import { createServiceClient } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
   try {
@@ -73,8 +74,24 @@ export async function POST(req: NextRequest) {
       getPvpWins(userId),
     ]);
 
-    // Get user's stats from scores for achievements
-    const userScores = await getUserScores(userId, 100);
+    // Get user's stats from scores for achievements (fetch all with pagination to avoid 1000 row limit)
+    const supabase = createServiceClient();
+    let allUserScores: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data: pageScores } = await supabase
+        .from("scores")
+        .select("*")
+        .eq("user_id", userId)
+        .order("score", { ascending: false })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      if (!pageScores || pageScores.length === 0) break;
+      allUserScores = allUserScores.concat(pageScores);
+      if (pageScores.length < pageSize) break;
+      page++;
+    }
+    const userScores = allUserScores;
     const totalKills = userScores.reduce((s, p) => s + (p.kills || 0), 0);
     const bestScore  = userScores.reduce((s, p) => Math.max(s, p.score || 0), 0);
     const maxWave    = userScores.reduce((s, p) => Math.max(s, p.wave || 0), 0);

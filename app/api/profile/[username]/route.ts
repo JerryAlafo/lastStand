@@ -19,15 +19,31 @@ export async function GET(_req: Request, { params }: { params: { username: strin
 
     const userId = profile.id;
 
-    const [scoresResult, levelResult, achievementsResult, pvpResult, weeklyResult] = await Promise.all([
-      supabase.from("scores").select("*").eq("user_id", userId).order("created_at"),
+    // Fetch all scores with pagination to avoid 1000 row limit
+    let allScores: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data: pageScores } = await supabase
+        .from("scores")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at")
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+      if (!pageScores || pageScores.length === 0) break;
+      allScores = allScores.concat(pageScores);
+      if (pageScores.length < pageSize) break;
+      page++;
+    }
+
+    const [levelResult, achievementsResult, pvpResult, weeklyResult] = await Promise.all([
       supabase.from("user_levels").select("*").eq("user_id", userId).single(),
       supabase.from("achievements").select("achievement_id").eq("user_id", userId),
       supabase.from("pvp_wins").select("id", { count: "exact", head: true }).eq("user_id", userId),
       supabase.from("weekly_scores").select("score").eq("user_id", userId).eq("week_start", getWeekId()),
     ]);
 
-    const scores = scoresResult.data || [];
+    const scores = allScores;
     const levelInfo = levelResult.data;
     const achievements = achievementsResult.data || [];
     const pvpWins = pvpResult.count || 0;

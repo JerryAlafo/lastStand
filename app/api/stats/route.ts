@@ -7,17 +7,32 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const supabase = createServiceClient();
 
-  const [profilesResult, scoresResult, pvpResult, levelsResult] = await Promise.all([
+  const [profilesResult, pvpResult, levelsResult] = await Promise.all([
     supabase.from("profiles").select("id, username"),
-    supabase.from("scores").select("user_id, score, kills"),
     supabase.from("pvp_wins").select("user_id"),
     supabase.from("user_levels").select("user_id, level"),
   ]);
 
   const profiles = profilesResult.data || [];
-  const scores = scoresResult.data || [];
   const pvpWins = pvpResult.data || [];
   const levels = levelsResult.data || [];
+
+  // Fetch all scores with pagination to avoid 1000 row limit
+  let allScores: any[] = [];
+  let page = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data: pageScores } = await supabase
+      .from("scores")
+      .select("user_id, score, kills")
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (!pageScores || pageScores.length === 0) break;
+    allScores = allScores.concat(pageScores);
+    if (pageScores.length < pageSize) break;
+    page++;
+  }
+
+  const scores = allScores;
 
   const levelMap = new Map<string, { level: number; title: string; color: string }>();
   for (const l of levels) {
