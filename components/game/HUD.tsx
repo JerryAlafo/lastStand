@@ -868,8 +868,8 @@ export default function HUD({
                 sx={{ color: textSecondary, transition: "color 1s" }}
               >
                 desde{" "}
-                {session.user.createdAt
-                  ? new Date(session.user.createdAt).toLocaleDateString()
+                {(session?.user as { createdAt?: string })?.createdAt
+                  ? new Date((session?.user as { createdAt?: string })?.createdAt!).toLocaleDateString()
                   : "—"}
               </Typography>
             </div>
