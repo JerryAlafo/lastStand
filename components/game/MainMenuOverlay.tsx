@@ -54,9 +54,20 @@ export default function MainMenuOverlay({
   const [pushState, setPushState] = useState<"unknown" | "subscribed" | "denied" | "unsupported" | "idle">("idle");
   const [pushLoading, setPushLoading] = useState(false);
   const [showMaps, setShowMaps] = useState(false);
+  const [compactLayout, setCompactLayout] = useState(false);
   const mapId = selectedMap ?? "arena";
   const subscribedRef = useRef(false);
   const supportsNotification = typeof Notification !== "undefined";
+
+  useEffect(() => {
+    const updateCompactLayout = () => {
+      if (typeof window === "undefined") return;
+      setCompactLayout(window.innerWidth <= 420 || window.innerHeight <= 760);
+    };
+    updateCompactLayout();
+    window.addEventListener("resize", updateCompactLayout);
+    return () => window.removeEventListener("resize", updateCompactLayout);
+  }, []);
 
   useEffect(() => {
     if (!supportsNotification || !("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -144,11 +155,13 @@ export default function MainMenuOverlay({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
+        justifyContent: compactLayout ? "flex-start" : "center",
         background:
           "radial-gradient(ellipse at 50% 35%, rgba(42,16,80,0.97) 0%, rgba(14,5,32,0.98) 60%, rgba(8,2,20,0.99) 100%)",
         backdropFilter: "blur(16px)",
         zIndex: 10,
+        overflowY: "auto",
+        padding: compactLayout ? "18px 12px 24px" : "20px 16px",
       }}
     >
       {/* Glow blobs */}
@@ -180,11 +193,11 @@ export default function MainMenuOverlay({
       />
 
       <Swords
-        size={52}
+        size={compactLayout ? 42 : 52}
         color="#e74c3c"
         strokeWidth={1.5}
         style={{
-          marginBottom: 18,
+          marginBottom: compactLayout ? 10 : 18,
           filter: "drop-shadow(0 0 16px #e74c3c88)",
           position: "relative",
           zIndex: 1,
@@ -193,7 +206,7 @@ export default function MainMenuOverlay({
       <div
         style={{
           color: "#fff",
-          fontSize: 28,
+          fontSize: compactLayout ? 24 : 28,
           fontWeight: 900,
           letterSpacing: 3,
           fontFamily: "monospace",
@@ -214,7 +227,7 @@ export default function MainMenuOverlay({
           color: "rgba(200,150,255,0.6)",
           textTransform: "uppercase",
           fontFamily: "monospace",
-          marginBottom: 22,
+          marginBottom: compactLayout ? 14 : 22,
           position: "relative",
           zIndex: 1,
         }}
@@ -224,7 +237,7 @@ export default function MainMenuOverlay({
 
       {/* Level + XP bar */}
       {levelInfo ? (
-        <div style={{ marginBottom: 16, position: "relative", zIndex: 1, textAlign: "center" }}>
+        <div style={{ marginBottom: compactLayout ? 10 : 16, position: "relative", zIndex: 1, textAlign: "center" }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: levelInfo.color, fontFamily: "monospace", letterSpacing: 1 }}>
             Nv.{levelInfo.level} · {levelInfo.title}
           </span>
@@ -236,7 +249,7 @@ export default function MainMenuOverlay({
           </span>
         </div>
       ) : (
-        <div style={{ marginBottom: 16, position: "relative", zIndex: 1, textAlign: "center" }}>
+        <div style={{ marginBottom: compactLayout ? 10 : 16, position: "relative", zIndex: 1, textAlign: "center" }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.3)", fontFamily: "monospace", letterSpacing: 1 }}>
             A carregar...
           </span>
@@ -262,16 +275,19 @@ export default function MainMenuOverlay({
         style={{
           color: "rgba(255,255,255,0.45)",
           fontSize: isMobile ? 13 : 12,
-          marginBottom: 30,
+          marginBottom: compactLayout ? 14 : 30,
           textAlign: "center",
-          lineHeight: 2.2,
+          lineHeight: compactLayout ? 1.8 : 2.2,
           fontFamily: "monospace",
           position: "relative",
           zIndex: 1,
           background: "rgba(255,255,255,0.04)",
           border: "1px solid rgba(255,255,255,0.08)",
           borderRadius: 12,
-          padding: "12px 24px",
+          padding: compactLayout ? "10px 14px" : "12px 24px",
+          width: "100%",
+          maxWidth: compactLayout ? 360 : 420,
+          boxSizing: "border-box",
           backdropFilter: "blur(8px)",
         }}
       >
@@ -310,7 +326,7 @@ export default function MainMenuOverlay({
       </div>
 
       {/* Map selection */}
-      <div style={{ marginTop: 16, marginBottom: 4, position: "relative", zIndex: 1, width: "100%", maxWidth: 380, padding: "0 4px" }}>
+      <div style={{ marginTop: compactLayout ? 8 : 16, marginBottom: 4, position: "relative", zIndex: 1, width: "100%", maxWidth: 380, padding: "0 4px" }}>
         <button onClick={() => setShowMaps(!showMaps)}
           style={{ width: "100%", padding: "10px 14px", borderRadius: 12, cursor: "pointer", background: showMaps ? "rgba(123,47,247,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${showMaps ? "rgba(123,47,247,0.5)" : "rgba(255,255,255,0.1)"}`, color: showMaps ? "#aa55ff" : "rgba(255,255,255,0.6)", fontFamily: "monospace", fontSize: 14, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "all 0.2s" }}>
           <MapPin size={13} /> {MAPS.find(m => m.id === mapId)?.namePt ?? "Arena Clássica"}
@@ -338,7 +354,7 @@ export default function MainMenuOverlay({
         )}
       </div>
 
-      <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 380, padding: "0 4px" }}>
+      <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 380, padding: "0 4px", marginTop: compactLayout ? 4 : 0 }}>
         <Button
           onClick={() => onStart(mapId)}
           variant="contained"
@@ -351,8 +367,8 @@ export default function MainMenuOverlay({
             fontWeight: 800,
             letterSpacing: 2,
             fontFamily: "monospace",
-            px: 7,
-            py: 2,
+            px: compactLayout ? 3 : 7,
+            py: compactLayout ? 1.35 : 2,
             borderRadius: 2,
             textTransform: "none",
             boxShadow: "0 0 32px rgba(231,76,60,0.55)",
@@ -368,7 +384,7 @@ export default function MainMenuOverlay({
 
       {/* Class selection (unlocked at level 10) */}
       {levelInfo && levelInfo.level >= 10 && onClassChange && (
-        <div style={{ marginTop: 16, marginBottom: 4, position: "relative", zIndex: 1, width: "100%", maxWidth: 380 }}>
+        <div style={{ marginTop: compactLayout ? 10 : 16, marginBottom: 4, position: "relative", zIndex: 1, width: "100%", maxWidth: 380 }}>
           <div style={{ fontSize: 10, letterSpacing: 2, color: "rgba(200,150,255,0.6)", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 8, textAlign: "center" }}>
             Classe de Personagem
           </div>
@@ -408,8 +424,8 @@ export default function MainMenuOverlay({
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
-          gap: 8,
-          marginTop: 20,
+          gap: compactLayout ? 6 : 8,
+          marginTop: compactLayout ? 12 : 20,
           position: "relative",
           zIndex: 1,
           width: "100%",
