@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
@@ -13,6 +13,25 @@ import IconButton from "@mui/material/IconButton";
 import CircularProgress from "@mui/material/CircularProgress";
 import { User, Lock, LogIn, Eye, EyeOff } from "lucide-react";
 
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (
+        container: string | HTMLElement,
+        options: {
+          sitekey: string;
+          callback?: (token: string) => void;
+          "expired-callback"?: () => void;
+          "error-callback"?: () => void;
+          theme?: "light" | "dark" | "auto";
+          size?: "normal" | "compact" | "flexible";
+        },
+      ) => string;
+      remove: (widgetId: string) => void;
+    };
+  }
+}
+
 export default function LoginForm() {
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -20,17 +39,68 @@ export default function LoginForm() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+  useEffect(() => {
+    if (!siteKey) return;
+    const scriptId = "cf-turnstile-script";
+    const containerId = "turnstile-login-container";
+
+    const mountWidget = () => {
+      if (!window.turnstile) return;
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = "";
+      window.turnstile.render(container, {
+        sitekey: siteKey,
+        theme: "dark",
+        size: "flexible",
+        callback: (token: string) => setCaptchaToken(token),
+        "expired-callback": () => setCaptchaToken(null),
+        "error-callback": () => setCaptchaToken(null),
+      });
+      const widgetWrapper = container.firstElementChild as HTMLElement | null;
+      if (widgetWrapper) {
+        widgetWrapper.style.width = "100%";
+        widgetWrapper.style.maxWidth = "100%";
+      }
+    };
+
+    const existing = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (existing) {
+      if (window.turnstile) {
+        mountWidget();
+      } else {
+        existing.addEventListener("load", mountWidget, { once: true });
+      }
+      return () => existing.removeEventListener("load", mountWidget);
+    }
+
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    script.async = true;
+    script.defer = true;
+    script.onload = mountWidget;
+    document.head.appendChild(script);
+    return () => script.removeEventListener("load", mountWidget);
+  }, [siteKey]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!captchaToken) {
+      setError("Valide o checkbox de segurança antes de entrar.");
+      return;
+    }
     setLoading(true);
     try {
       // Try new login API first
       const loginRes = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, captchaToken }),
       });
       
       const loginData = await loginRes.json();
@@ -130,9 +200,27 @@ export default function LoginForm() {
         </Alert>
       )}
 
+      {siteKey ? (
+        <Box
+          id="turnstile-login-container"
+          sx={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            minHeight: 66,
+            "& > div": { width: "100% !important", maxWidth: "100% !important" },
+            "& iframe": { width: "100% !important" },
+          }}
+        />
+      ) : (
+        <Alert severity="warning" sx={{ backgroundColor: "rgba(255,180,0,0.1)", color: "#ffd27a", border: "1px solid rgba(255,180,0,0.25)", fontSize: 14 }}>
+          Turnstile não configurado. Defina NEXT_PUBLIC_TURNSTILE_SITE_KEY.
+        </Alert>
+      )}
+
       <Button
         type="submit"
-        disabled={loading}
+        disabled={loading || !captchaToken}
         fullWidth
         variant="contained"
         startIcon={loading ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : <LogIn size={18} />}

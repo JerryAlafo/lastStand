@@ -1,17 +1,31 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { verifyTurnstileToken } from "@/lib/turnstile";
+
+function getClientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0].trim();
+  return req.headers.get("x-real-ip") ?? "";
+}
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as { username?: string; password?: string };
+    const body = (await req.json()) as { username?: string; password?: string; captchaToken?: string };
     const username = body.username?.trim();
     const password = body.password;
+    const captchaToken = body.captchaToken?.trim();
 
-    if (!username || !password) {
+    if (!username || !password || !captchaToken) {
       return NextResponse.json(
-        { error: "Username e senha são obrigatórios." },
+        { error: "Username, senha e validação de segurança são obrigatórios." },
         { status: 400 },
       );
+    }
+
+    const ip = getClientIp(req);
+    const captchaValidation = await verifyTurnstileToken(captchaToken, ip);
+    if (!captchaValidation.ok) {
+      return NextResponse.json({ error: captchaValidation.error }, { status: 400 });
     }
 
     const supabase = createServiceClient();

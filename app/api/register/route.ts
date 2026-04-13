@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 function getClientIp(req: Request): string {
   const xff = req.headers.get("x-forwarded-for");
@@ -9,14 +10,15 @@ function getClientIp(req: Request): string {
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as { username?: string; password?: string; email?: string };
+    const body = (await req.json()) as { username?: string; password?: string; email?: string; captchaToken?: string };
     const username = body.username?.trim();
     const password = body.password;
     const email = body.email || `${username}@laststand.local`;
+    const captchaToken = body.captchaToken?.trim();
     
-    if (!username || !password) {
+    if (!username || !password || !captchaToken) {
       return NextResponse.json(
-        { error: "Username e senha são obrigatórios." },
+        { error: "Username, senha e validação de segurança são obrigatórios." },
         { status: 400 },
       );
     }
@@ -38,6 +40,10 @@ export async function POST(req: Request) {
     const supabase = createServiceClient();
     const ip = getClientIp(req);
     const userAgent = (req.headers.get("user-agent") ?? "unknown").slice(0, 250);
+    const captchaValidation = await verifyTurnstileToken(captchaToken, ip);
+    if (!captchaValidation.ok) {
+      return NextResponse.json({ error: captchaValidation.error }, { status: 400 });
+    }
 
     const { data: existingUser } = await supabase
       .from("profiles")
