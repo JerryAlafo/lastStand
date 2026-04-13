@@ -1,9 +1,9 @@
-// ── Level thresholds (50 levels) ─────────────────────────────────────────────
+// ── Level thresholds (infinite levels) ──────────────────────────────────────
 // XP required to REACH each level (level 1 = 0 xp)
 const XP_TABLE: number[] = [0];
 {
   let xp = 0;
-  for (let i = 1; i < 50; i++) {
+  for (let i = 1; i < 500; i++) {
     xp += Math.floor(300 + i * 180 + i * i * 12);
     XP_TABLE.push(xp);
   }
@@ -14,11 +14,20 @@ export function getLevel(totalXp: number): number {
   for (let i = 1; i < XP_TABLE.length; i++) {
     if (totalXp >= XP_TABLE[i]) lv = i + 1; else break;
   }
-  return Math.min(lv, 50);
+  return lv;
 }
 
 export function xpForLevel(level: number): number {
-  return XP_TABLE[Math.min(level - 1, XP_TABLE.length - 1)] ?? 0;
+  if (level <= 1) return 0;
+  const idx = level - 1;
+  if (idx >= XP_TABLE.length) {
+    let xp = XP_TABLE[XP_TABLE.length - 1];
+    for (let i = XP_TABLE.length; i <= idx; i++) {
+      xp += Math.floor(300 + i * 180 + i * i * 12);
+    }
+    return xp;
+  }
+  return XP_TABLE[idx - 1] ?? 0;
 }
 
 export function xpForGame(score: number, wave: number, kills: number): number {
@@ -26,6 +35,11 @@ export function xpForGame(score: number, wave: number, kills: number): number {
 }
 
 export function getLevelTitle(level: number): string {
+  if (level >= 200) return "Divino";
+  if (level >= 150) return "Transcendental";
+  if (level >= 100) return "Mitológico";
+  if (level >= 80) return "Lenda";
+  if (level >= 60) return "Épico";
   if (level >= 40) return "Lendário";
   if (level >= 30) return "Campeão";
   if (level >= 20) return "Elite";
@@ -34,6 +48,10 @@ export function getLevelTitle(level: number): string {
 }
 
 export function getLevelColor(level: number): string {
+  if (level >= 150) return "#ffd700";
+  if (level >= 100) return "#ff00ff";
+  if (level >= 80) return "#ff6600";
+  if (level >= 60) return "#ffaa00";
   if (level >= 40) return "#ff6600";
   if (level >= 30) return "#aa00ff";
   if (level >= 20) return "#0099ff";
@@ -126,9 +144,13 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "score_50k",    name: "Cinquenta Mil",        icon: "💫", desc: "Faz 50000 pontos",                    type: "bestScore",     target: 50000 },
   { id: "pvp_win",      name: "Duelista",             icon: "⚡", desc: "Vence uma partida PVP",               type: "pvpWins",       target: 1     },
   { id: "pvp_5",        name: "Gladiador",            icon: "🥊", desc: "Vence 5 partidas PVP",                type: "pvpWins",       target: 5     },
-  { id: "level_10",     name: "Veterano",             icon: "🎖️", desc: "Atinge o nível 10",                   type: "level",         target: 10    },
+  { id: "level_10",       name: "Veterano",             icon: "🎖️", desc: "Atinge o nível 10",                   type: "level",         target: 10    },
   { id: "level_20",     name: "Elite",                icon: "🎗️", desc: "Atinge o nível 20",                   type: "level",         target: 20    },
   { id: "level_30",     name: "Campeão",              icon: "👑", desc: "Atinge o nível 30",                   type: "level",         target: 30    },
+  { id: "level_40",     name: "Arqueiro",             icon: "🏹", desc: "Atinge o nível 40",                   type: "level",         target: 40    },
+  { id: "level_60",     name: "Paladino",            icon: "⚜️", desc: "Atinge o nível 60",                   type: "level",         target: 60    },
+  { id: "level_80",     name: "Necromante",           icon: "💀", desc: "Atinge o nível 80",                   type: "level",         target: 80    },
+  { id: "level_100",    name: "Lenda",                icon: "🌟", desc: "Atinge o nível 100",                  type: "level",         target: 100   },
   { id: "session_100k", name: "Carnificina",          icon: "🔥", desc: "Mata 100 inimigos numa partida",      type: "sessionKills",  target: 100   },
   { id: "session_w15",  name: "Campeão da Wave",      icon: "🏆", desc: "Sobrevive à wave 15 numa partida",    type: "sessionWave",   target: 15    },
   { id: "blast_5",      name: "Mestre da Fúria",      icon: "💥", desc: "Usa blast 5x numa partida",           type: "sessionBlast",  target: 5     },
