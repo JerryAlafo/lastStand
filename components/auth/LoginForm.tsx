@@ -46,6 +46,7 @@ export default function LoginForm() {
     if (!siteKey) return;
     const scriptId = "cf-turnstile-script";
     const containerId = "turnstile-login-container";
+    let resizeHandler: (() => void) | null = null;
 
     const mountWidget = () => {
       if (!window.turnstile) return;
@@ -55,15 +56,30 @@ export default function LoginForm() {
       window.turnstile.render(container, {
         sitekey: siteKey,
         theme: "dark",
-        size: "flexible",
+        size: "normal",
         callback: (token: string) => setCaptchaToken(token),
         "expired-callback": () => setCaptchaToken(null),
         "error-callback": () => setCaptchaToken(null),
       });
       const widgetWrapper = container.firstElementChild as HTMLElement | null;
       if (widgetWrapper) {
-        widgetWrapper.style.width = "100%";
-        widgetWrapper.style.maxWidth = "100%";
+        const baseWidth = 300;
+        const baseHeight = 65;
+        const applyScale = () => {
+          const availableWidth = container.clientWidth;
+          const rawScale = availableWidth / baseWidth;
+          const isDesktop = window.matchMedia("(min-width: 900px)").matches;
+          const scale = isDesktop ? Math.min(rawScale, 1.45) : Math.min(rawScale, 1);
+          widgetWrapper.style.width = `${baseWidth}px`;
+          widgetWrapper.style.maxWidth = `${baseWidth}px`;
+          widgetWrapper.style.transform = `scale(${scale})`;
+          widgetWrapper.style.transformOrigin = "top center";
+          container.style.minHeight = `${Math.ceil(baseHeight * scale)}px`;
+        };
+        applyScale();
+        if (resizeHandler) window.removeEventListener("resize", resizeHandler);
+        resizeHandler = applyScale;
+        window.addEventListener("resize", applyScale);
       }
     };
 
@@ -74,7 +90,10 @@ export default function LoginForm() {
       } else {
         existing.addEventListener("load", mountWidget, { once: true });
       }
-      return () => existing.removeEventListener("load", mountWidget);
+      return () => {
+        existing.removeEventListener("load", mountWidget);
+        if (resizeHandler) window.removeEventListener("resize", resizeHandler);
+      };
     }
 
     const script = document.createElement("script");
@@ -84,7 +103,10 @@ export default function LoginForm() {
     script.defer = true;
     script.onload = mountWidget;
     document.head.appendChild(script);
-    return () => script.removeEventListener("load", mountWidget);
+    return () => {
+      script.removeEventListener("load", mountWidget);
+      if (resizeHandler) window.removeEventListener("resize", resizeHandler);
+    };
   }, [siteKey]);
 
   async function onSubmit(e: FormEvent) {
@@ -208,8 +230,7 @@ export default function LoginForm() {
             display: "flex",
             justifyContent: "center",
             minHeight: 66,
-            "& > div": { width: "100% !important", maxWidth: "100% !important" },
-            "& iframe": { width: "100% !important" },
+            "& > div": { display: "block", margin: "0 auto" },
           }}
         />
       ) : (
