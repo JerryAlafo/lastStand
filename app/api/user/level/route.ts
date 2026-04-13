@@ -11,8 +11,19 @@ export async function GET(req: NextRequest) {
 
   const ul = await getUserLevel(userId);
   const totalXp = ul?.total_xp ?? 0;
-  const level   = ul?.level   ?? getLevel(totalXp);
+  const level   = getLevel(totalXp);
   const selectedClass = ul?.selected_class ?? null;
+
+  if (ul && ul.level && ul.level < level) {
+    await upsertUserLevel({
+      id: ul.id,
+      user_id: userId,
+      total_xp: totalXp,
+      level,
+      selected_class: selectedClass,
+      updated_at: new Date().toISOString(),
+    });
+  }
   const xpThisLevel   = xpForLevel(level);
   const xpNextLevel   = xpForLevel(level + 1);
   return NextResponse.json({
