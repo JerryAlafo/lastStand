@@ -31,7 +31,15 @@ interface Props {
 export default function UpgradeModal({ wave, upgrades, onPick, onSkip }: Props) {
   const options = useMemo(() => pickUpgradeOptions(upgrades), [wave]); // eslint-disable-line
   const [countdown, setCountdown] = useState(5);
+  const [compact, setCompact] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const onResize = () => setCompact(window.innerWidth <= 420 || window.innerHeight <= 760);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     timerRef.current = setInterval(() => {
@@ -55,6 +63,7 @@ export default function UpgradeModal({ wave, upgrades, onPick, onSkip }: Props) 
       position: "absolute", inset: 0, zIndex: 100,
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
       background: "rgba(5,0,20,0.88)", backdropFilter: "blur(18px)",
+      overflowY: "auto", padding: compact ? "16px 10px 22px" : "20px 16px",
     }}>
       <div style={{ position: "absolute", top: 20, right: 20, fontSize: 24, fontWeight: 900, color: countdown <= 2 ? "#e74c3c" : "rgba(255,255,255,0.3)", fontFamily: "monospace" }}>
         {countdown}s
@@ -65,12 +74,12 @@ export default function UpgradeModal({ wave, upgrades, onPick, onSkip }: Props) 
       <div style={{ fontSize: "clamp(18px,5vw,28px)", fontWeight: 900, color: "#fff", marginBottom: 6, fontFamily: "monospace", letterSpacing: 2 }}>
         ESCOLHE UM UPGRADE
       </div>
-      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 32, fontFamily: "monospace" }}>
+      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: compact ? 16 : 32, fontFamily: "monospace" }}>
         O upgrade escolhido dura toda a partida
       </div>
 
       <div style={{
-        display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center",
+        display: "flex", gap: compact ? 10 : 16, flexWrap: "wrap", justifyContent: "center",
         padding: "0 16px", maxWidth: 720, width: "100%",
       }}>
         {options.map((card: UpgradeCard) => (
@@ -78,7 +87,7 @@ export default function UpgradeModal({ wave, upgrades, onPick, onSkip }: Props) 
             key={card.id}
             onClick={() => { if (timerRef.current) clearInterval(timerRef.current); onPick(card.id); }}
             style={{
-              flex: "1 1 180px", maxWidth: 220, padding: "24px 20px",
+              flex: compact ? "1 1 160px" : "1 1 180px", maxWidth: compact ? 190 : 220, padding: compact ? "16px 14px" : "24px 20px",
               background: RARITY_COLORS[card.rarity],
               border: `1px solid ${RARITY_BORDER[card.rarity]}`,
               borderRadius: 16, cursor: "pointer", textAlign: "center",
@@ -111,7 +120,7 @@ export default function UpgradeModal({ wave, upgrades, onPick, onSkip }: Props) 
         ))}
       </div>
 
-      <div style={{ marginTop: 32, fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "monospace" }}>
+      <div style={{ marginTop: compact ? 16 : 32, fontSize: 11, color: "rgba(255,255,255,0.2)", fontFamily: "monospace" }}>
         upgrades activos: {upgrades.length}
       </div>
     </div>

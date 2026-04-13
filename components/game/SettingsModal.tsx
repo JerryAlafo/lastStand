@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Settings,
   X,
@@ -149,9 +149,17 @@ export default function SettingsModal({
   username: string;
 }) {
   const [showContact, setShowContact] = useState(false);
+  const [compact, setCompact] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [renameLoading, setRenameLoading] = useState(false);
   const [renameMsg, setRenameMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    const onResize = () => setCompact(window.innerWidth <= 420 || window.innerHeight <= 760);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   if (!open) return null;
 
@@ -167,16 +175,19 @@ export default function SettingsModal({
           justifyContent: "center",
           background: "rgba(0,0,10,0.85)",
           backdropFilter: "blur(8px)",
+          padding: compact ? "12px" : "20px",
         }}
       >
         <div
           style={{
             width: 480,
             maxWidth: "92vw",
+            maxHeight: "90vh",
+            overflowY: "auto",
             background: "rgba(12,4,28,0.98)",
             border: "1px solid rgba(255,255,255,0.1)",
             borderRadius: 20,
-            padding: "26px 28px",
+            padding: compact ? "18px 16px" : "26px 28px",
             boxShadow: "0 0 80px rgba(123,47,247,0.3)",
             fontFamily: "'Inter','Segoe UI',sans-serif",
           }}
@@ -423,6 +434,7 @@ export default function SettingsModal({
         justifyContent: "center",
         background: "rgba(0,0,10,0.85)",
         backdropFilter: "blur(8px)",
+        padding: compact ? "12px" : "20px",
       }}
     >
       <div
@@ -434,7 +446,7 @@ export default function SettingsModal({
           background: "rgba(12,4,28,0.98)",
           border: "1px solid rgba(255,255,255,0.1)",
           borderRadius: 20,
-          padding: "26px 28px 22px",
+          padding: compact ? "18px 16px 16px" : "26px 28px 22px",
           boxShadow: "0 0 80px rgba(123,47,247,0.3)",
           fontFamily: "'Inter','Segoe UI',sans-serif",
         }}
@@ -477,7 +489,7 @@ export default function SettingsModal({
         </div>
 
         {/* Two-column: pickers + preview */}
-        <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+        <div style={{ display: "flex", flexDirection: compact ? "column" : "row", gap: compact ? 12 : 20, alignItems: "flex-start" }}>
           {/* Left: colour pickers */}
           <div style={{ flex: 1 }}>
             <div
@@ -573,7 +585,8 @@ export default function SettingsModal({
               flexDirection: "column",
               alignItems: "center",
               gap: 8,
-              paddingTop: 24,
+              paddingTop: compact ? 0 : 24,
+              width: compact ? "100%" : "auto",
             }}
           >
             <div
@@ -633,7 +646,7 @@ export default function SettingsModal({
               Alterar Username
             </span>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", flexDirection: compact ? "column" : "row", gap: 8 }}>
             <input
               value={newUsername}
               onChange={(e) => {
@@ -733,7 +746,7 @@ export default function SettingsModal({
         />
 
         {/* Contact + close row */}
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: compact ? "column" : "row", gap: 10 }}>
           <button
             onClick={() => {
               setShowContact(true);

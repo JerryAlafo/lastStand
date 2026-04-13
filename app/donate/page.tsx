@@ -45,7 +45,7 @@ export default function DonatePage() {
     <div style={{
       minHeight: "100vh", overflowY: "auto", overflowX: "hidden",
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start",
-      padding: "24px 20px 40px",
+      padding: "clamp(14px, 4vw, 24px) clamp(12px, 4vw, 20px) clamp(20px, 6vw, 40px)",
       background: "radial-gradient(ellipse at 50% 25%, #2a1050 0%, #160830 55%, #0e0520 100%)",
       color: "#fff", position: "relative",
     }}>
@@ -64,11 +64,11 @@ export default function DonatePage() {
         </Button>
 
         {/* Header */}
-        <Box sx={{ textAlign: "center", mb: 3 }}>
-          <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 60, height: 60, borderRadius: "50%", background: "linear-gradient(135deg,#e74c3c,#ff6b9d)", boxShadow: "0 0 30px rgba(231,76,60,0.4)", mb: 2 }}>
+        <Box sx={{ textAlign: "center", mb: { xs: 2, sm: 3 } }}>
+          <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: { xs: 52, sm: 60 }, height: { xs: 52, sm: 60 }, borderRadius: "50%", background: "linear-gradient(135deg,#e74c3c,#ff6b9d)", boxShadow: "0 0 30px rgba(231,76,60,0.4)", mb: 2 }}>
             <Heart size={26} color="#fff" fill="#fff" />
           </Box>
-          <Typography sx={{ fontSize: 26, fontWeight: 800, background: "linear-gradient(135deg,#fff,#ffaacc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", mb: 0.5 }}>
+          <Typography sx={{ fontSize: { xs: 22, sm: 26 }, fontWeight: 800, background: "linear-gradient(135deg,#fff,#ffaacc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", mb: 0.5 }}>
             Apoiar o Projecto
           </Typography>
           <Typography sx={{ fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.6 }}>
@@ -77,7 +77,7 @@ export default function DonatePage() {
         </Box>
 
         {/* Card */}
-        <Box sx={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 4, p: "28px 28px", backdropFilter: "blur(20px)", boxShadow: "0 0 60px rgba(123,47,247,0.15), 0 12px 40px rgba(0,0,0,0.4)" }}>
+        <Box sx={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 4, p: { xs: "18px 14px", sm: "28px 28px" }, backdropFilter: "blur(20px)", boxShadow: "0 0 60px rgba(123,47,247,0.15), 0 12px 40px rgba(0,0,0,0.4)" }}>
 
           {/* Country selector */}
           <Typography sx={{ fontSize: 12, letterSpacing: 2.5, color: "rgba(200,150,255,0.75)", textTransform: "uppercase", mb: 1.5, fontFamily: "monospace" }}>
@@ -132,10 +132,10 @@ export default function DonatePage() {
               ))}
 
               {/* Number */}
-              <Box sx={{ mt: 2.5, p: "16px 20px", background: "rgba(227,6,19,0.08)", border: "1px solid rgba(227,6,19,0.25)", borderRadius: 3, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <Box sx={{ mt: 2.5, p: { xs: "14px 12px", sm: "16px 20px" }, background: "rgba(227,6,19,0.08)", border: "1px solid rgba(227,6,19,0.25)", borderRadius: 3, display: "flex", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: { xs: 1.2, sm: 0 }, justifyContent: "space-between" }}>
                 <Box>
                   <Typography sx={{ fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: 1.5, textTransform: "uppercase", fontFamily: "monospace", mb: 0.5 }}>Número M-Pesa</Typography>
-                  <Typography sx={{ fontSize: 26, fontWeight: 900, letterSpacing: 3, color: "#fff", fontFamily: "monospace" }}>{MPESA_NUMBER}</Typography>
+                  <Typography sx={{ fontSize: { xs: 20, sm: 26 }, fontWeight: 900, letterSpacing: { xs: 1.5, sm: 3 }, color: "#fff", fontFamily: "monospace" }}>{MPESA_NUMBER}</Typography>
                   <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.4)", mt: 0.3 }}>Jerry Alafo</Typography>
                 </Box>
                 <Button
@@ -146,6 +146,7 @@ export default function DonatePage() {
                     background: copied ? "rgba(46,204,113,0.85)" : "rgba(255,255,255,0.1)",
                     color: "#fff", fontWeight: 700, textTransform: "none", borderRadius: 2,
                     border: "1px solid rgba(255,255,255,0.15)", fontSize: 13,
+                    alignSelf: { xs: "stretch", sm: "auto" },
                     "&:hover": { background: copied ? "rgba(46,204,113,0.95)" : "rgba(255,255,255,0.18)" },
                     transition: "all 0.2s",
                   }}

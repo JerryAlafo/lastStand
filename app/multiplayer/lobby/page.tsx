@@ -93,31 +93,31 @@ function LobbyContent() {
       minHeight: "100vh",
       background: "radial-gradient(ellipse at 50% 25%, #2a1050 0%, #0e0520 60%, #08021a 100%)",
       color: "#fff", display: "flex", flexDirection: "column", alignItems: "center",
-      justifyContent: "center", padding: "32px 20px",
+      justifyContent: "center", padding: "clamp(16px, 5vw, 32px) clamp(12px, 4vw, 20px)",
       fontFamily: "'Inter','Segoe UI',sans-serif",
     }}>
       <div style={{ position: "fixed", top: "8%", right: "8%", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(123,47,247,0.16) 0%, transparent 70%)", pointerEvents: "none" }} />
 
       <Box sx={{ width: "100%", maxWidth: 480, position: "relative", zIndex: 1 }}>
         <Button onClick={() => router.push("/multiplayer")} startIcon={<ArrowLeft size={14} />} variant="outlined"
-          sx={{ mb: 3, color: "rgba(255,255,255,0.5)", borderColor: "rgba(255,255,255,0.12)", borderRadius: 2, textTransform: "none", "&:hover": { borderColor: "rgba(255,255,255,0.25)", bgcolor: "rgba(255,255,255,0.04)" } }}>
+          sx={{ mb: { xs: 2, sm: 3 }, color: "rgba(255,255,255,0.5)", borderColor: "rgba(255,255,255,0.12)", borderRadius: 2, textTransform: "none", "&:hover": { borderColor: "rgba(255,255,255,0.25)", bgcolor: "rgba(255,255,255,0.04)" } }}>
           Voltar
         </Button>
 
         {/* Mode badge */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 3, p: "8px 16px", borderRadius: 20, border: `1px solid ${modeColor}44`, background: `${modeColor}11`, width: "fit-content" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: { xs: 2, sm: 3 }, p: { xs: "6px 12px", sm: "8px 16px" }, borderRadius: 20, border: `1px solid ${modeColor}44`, background: `${modeColor}11`, width: "fit-content" }}>
           <ModeIcon size={14} color={modeColor} />
           <Typography sx={{ fontSize: 12, fontWeight: 700, color: modeColor, letterSpacing: 0.5 }}>{modeLabel}</Typography>
         </Box>
 
         {/* Room card */}
-        <Box sx={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 3, p: 3, backdropFilter: "blur(16px)", mb: 3 }}>
+        <Box sx={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 3, p: { xs: 2, sm: 3 }, backdropFilter: "blur(16px)", mb: { xs: 2, sm: 3 } }}>
           <Typography sx={{ fontSize: 11, letterSpacing: 3, color: "rgba(200,150,255,0.6)", textTransform: "uppercase", fontFamily: "monospace", mb: 2 }}>
             Sala de Espera
           </Typography>
 
           {/* Players */}
-          <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
+          <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 2, mb: 3 }}>
             {/* Host */}
             <Box sx={{ flex: 1, p: 2, background: "rgba(123,47,247,0.12)", border: "1px solid rgba(123,47,247,0.3)", borderRadius: 2, textAlign: "center" }}>
               <Typography sx={{ fontSize: 10, letterSpacing: 2, color: "rgba(200,150,255,0.75)", textTransform: "uppercase", mb: 1 }}>Criador</Typography>
@@ -127,7 +127,7 @@ function LobbyContent() {
               <Box sx={{ width: 8, height: 8, borderRadius: "50%", background: "#2ecc71", mx: "auto", mt: 1 }} />
             </Box>
 
-            <Box sx={{ display: "flex", alignItems: "center", color: "rgba(255,255,255,0.2)", fontSize: 18, fontWeight: 300 }}>VS</Box>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.2)", fontSize: 18, fontWeight: 300 }}>VS</Box>
 
             {/* Guest */}
             <Box sx={{ flex: 1, p: 2, background: room?.guest ? "rgba(46,204,113,0.08)" : "rgba(255,255,255,0.03)", border: `1px solid ${room?.guest ? "rgba(46,204,113,0.3)" : "rgba(255,255,255,0.08)"}`, borderRadius: 2, textAlign: "center" }}>

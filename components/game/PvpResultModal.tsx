@@ -3,6 +3,7 @@
 import { MultiProps } from "@/lib/gameTypes";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { Trophy, Skull, DoorOpen } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface Props {
   pvpResult: "win" | "loss" | "abandoned";
@@ -23,27 +24,38 @@ export default function PvpResultModal({
   reset,
   router,
 }: Props) {
+  const [compact, setCompact] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => setCompact(window.innerWidth <= 420 || window.innerHeight <= 760);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 200,
       background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)",
       display: "flex", alignItems: "center", justifyContent: "center",
+      padding: compact ? "12px" : "20px",
     }}>
       <div style={{
         background: "linear-gradient(135deg, #1a0a30, #0e0520)",
         border: `1px solid ${pvpResult === "win" ? "rgba(46,204,113,0.4)" : "rgba(255,170,0,0.35)"}`,
-        borderRadius: 20, padding: "40px 36px", textAlign: "center",
+        borderRadius: 20, padding: compact ? "24px 16px" : "40px 36px", textAlign: "center",
         maxWidth: 380, width: "90%",
+        maxHeight: "90vh", overflowY: "auto",
         boxShadow: pvpResult === "win"
           ? "0 0 60px rgba(46,204,113,0.25)"
           : "0 0 60px rgba(255,170,0,0.2)",
       }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 12, color: pvpResult === "win" ? "#ffd700" : pvpResult === "abandoned" ? "rgba(255,255,255,0.5)" : "#e74c3c" }}>
           {pvpResult === "win"
-            ? <Trophy size={64} style={{ filter: "drop-shadow(0 0 20px #ffd70066)" }} />
+            ? <Trophy size={compact ? 52 : 64} style={{ filter: "drop-shadow(0 0 20px #ffd70066)" }} />
             : pvpResult === "abandoned"
-            ? <DoorOpen size={64} />
-            : <Skull size={64} style={{ filter: "drop-shadow(0 0 20px #e74c3c66)" }} />}
+            ? <DoorOpen size={compact ? 52 : 64} />
+            : <Skull size={compact ? 52 : 64} style={{ filter: "drop-shadow(0 0 20px #e74c3c66)" }} />}
         </div>
         <div style={{ fontSize: "clamp(22px, 6vw, 32px)", fontWeight: 900, color: "#fff", marginBottom: 8 }}>
           {pvpResult === "win" ? "Vitória!" : pvpResult === "abandoned" ? "Adversário saiu" : "Derrota"}
