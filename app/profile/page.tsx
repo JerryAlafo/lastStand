@@ -41,9 +41,12 @@ interface Achievement {
 }
 
 const CLASS_INFO: Record<string, { label: string; icon: React.ReactNode; color: string; desc: string; req: number }> = {
-  warrior:  { label: "Guerreiro", icon: <Shield size={20} />,  color: "#00cc66", desc: "+30% HP, +20% dano",     req: 10 },
-  assassin: { label: "Assassino", icon: <Sword size={20} />,   color: "#0099ff", desc: "+50% vel., +20% dano",   req: 20 },
-  mage:     { label: "Mago",      icon: <Flame size={20} />,   color: "#aa00ff", desc: "Blast duplo, +30% dano", req: 30 },
+  warrior:      { label: "Guerreiro",   icon: <Shield size={20} />,  color: "#e74c3c", desc: "+HP, lento",          req: 10 },
+  assassin:    { label: "Assassino",   icon: <Sword size={20} />,   color: "#aa00ff", desc: "Veloz, -HP",          req: 20 },
+  mage:        { label: "Mago",        icon: <Flame size={20} />,   color: "#0088ff", desc: "2 balas, lento",      req: 30 },
+  archer:      { label: "Arqueiro",   icon: <Target size={20} />, color: "#00cc66", desc: "Tiro rápido",         req: 40 },
+  paladin:     { label: "Paladino",   icon: <Crown size={20} />,  color: "#ffaa00", desc: "++HP, lento",         req: 60 },
+  necromancer: { label: "Necromante", icon: <Skull size={20} />, color: "#8844ff", desc: "3 burlas",           req: 80 },
 };
 
 // Map achievement ID → lucide icon element
@@ -65,7 +68,11 @@ const ACH_ICONS: Record<string, React.ReactNode> = {
   level_10:     <Medal      size={22} />,
   level_20:     <BadgeCheck size={22} />,
   level_30:     <Crown      size={22} />,
-  session_100k: <Flame      size={22} />,
+  level_40:     <Crosshair size={22} />,
+  level_60:     <Shield    size={22} />,
+  level_80:     <Skull     size={22} />,
+  level_100:    <Star      size={22} />,
+  session_100k: <Flame     size={22} />,
   session_w15:  <Trophy     size={22} />,
   blast_5:      <Bomb       size={22} />,
 };
@@ -219,7 +226,7 @@ export default function ProfilePage() {
                 Classe
               </Typography>
               <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
-                {(["warrior", "assassin", "mage"] as const).map(cls => {
+                {(["warrior", "assassin", "mage", "archer", "paladin", "necromancer"] as const).map(cls => {
                   const info = CLASS_INFO[cls];
                   const unlocked = (levelInfo?.level ?? 0) >= info.req;
                   const active   = levelInfo?.selectedClass === cls;

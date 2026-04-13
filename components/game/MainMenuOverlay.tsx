@@ -17,6 +17,9 @@ import {
   Bell,
   BellOff,
   Target,
+  Gem,
+  Crown,
+  Skull,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useState, useEffect, useRef } from "react";
@@ -369,18 +372,21 @@ export default function MainMenuOverlay({
           <div style={{ fontSize: 10, letterSpacing: 2, color: "rgba(200,150,255,0.6)", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 8, textAlign: "center" }}>
             Classe de Personagem
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 8 }}>
             {([
-              { id: "warrior",  icon: <Shield size={18} />, name: "Guerreiro",  desc: "+HP, lento",     req: 10, color: "#e74c3c" },
-              { id: "assassin", icon: <Sword  size={18} />, name: "Assassino",  desc: "Veloz, -HP",     req: 20, color: "#aa00ff" },
-              { id: "mage",     icon: <Wand2  size={18} />, name: "Mago",        desc: "2 balas, lento", req: 30, color: "#0088ff" },
+              { id: "warrior",      icon: <Shield size={18} />,     name: "Guerreiro",     desc: "+HP, lento",      req: 10, color: "#e74c3c" },
+              { id: "assassin",     icon: <Sword size={18} />,     name: "Assassino",    desc: "Veloz, -HP",      req: 20, color: "#aa00ff" },
+              { id: "mage",        icon: <Wand2 size={18} />,     name: "Mago",         desc: "2 balas",       req: 30, color: "#0088ff" },
+              { id: "archer",     icon: <Gem size={18} />,       name: "Arqueiro",    desc: "Tiro rápido",  req: 40, color: "#00cc66" },
+              { id: "paladin",    icon: <Crown size={18} />,    name: "Paladino",   desc: "++HP, lento",  req: 60, color: "#ffaa00" },
+              { id: "necromancer", icon: <Skull size={18} />,     name: "Necromante",  desc: "3 balas",      req: 80, color: "#8844ff" },
             ] as { id: string; icon: React.ReactNode; name: string; desc: string; req: number; color: string }[]).map(cls => {
               const locked    = levelInfo.level < cls.req;
               const selected  = levelInfo.selectedClass === cls.id;
               return (
                 <button key={cls.id} onClick={() => !locked && onClassChange(cls.id)} disabled={locked}
                   style={{
-                    flex: 1, padding: "8px 4px", borderRadius: 10, cursor: locked ? "not-allowed" : "pointer",
+                    minWidth: 90, flexShrink: 0, padding: "8px 6px", borderRadius: 10, cursor: locked ? "not-allowed" : "pointer",
                     background: selected ? `${cls.color}22` : "rgba(255,255,255,0.04)",
                     border: `1px solid ${selected ? cls.color : locked ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.12)"}`,
                     color: locked ? "rgba(255,255,255,0.25)" : selected ? cls.color : "rgba(255,255,255,0.7)",

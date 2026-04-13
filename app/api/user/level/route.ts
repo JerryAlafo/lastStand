@@ -36,16 +36,19 @@ export async function POST(req: NextRequest) {
   if (!username || !userId) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
   const body = (await req.json()) as { selectedClass?: string };
-  const allowed = ["warrior", "assassin", "mage"];
+  const allowed = ["warrior", "assassin", "mage", "archer", "paladin", "necromancer"];
   if (!body.selectedClass || !allowed.includes(body.selectedClass)) {
     return NextResponse.json({ error: "Classe inválida." }, { status: 400 });
   }
 
   const ul = await getUserLevel(userId);
   const level = ul?.level ?? 1;
-  if (body.selectedClass === "warrior"  && level < 10) return NextResponse.json({ error: "Nível 10 necessário." }, { status: 403 });
-  if (body.selectedClass === "assassin" && level < 20) return NextResponse.json({ error: "Nível 20 necessário." }, { status: 403 });
-  if (body.selectedClass === "mage"     && level < 30) return NextResponse.json({ error: "Nível 30 necessário." }, { status: 403 });
+  if (body.selectedClass === "warrior"      && level < 10) return NextResponse.json({ error: "Nível 10 necessário." }, { status: 403 });
+  if (body.selectedClass === "assassin"     && level < 20) return NextResponse.json({ error: "Nível 20 necessário." }, { status: 403 });
+  if (body.selectedClass === "mage"         && level < 30) return NextResponse.json({ error: "Nível 30 necessário." }, { status: 403 });
+  if (body.selectedClass === "archer"       && level < 40) return NextResponse.json({ error: "Nível 40 necessário." }, { status: 403 });
+  if (body.selectedClass === "paladin"     && level < 60) return NextResponse.json({ error: "Nível 60 necessário." }, { status: 403 });
+  if (body.selectedClass === "necromancer"  && level < 80) return NextResponse.json({ error: "Nível 80 necessário." }, { status: 403 });
 
   await upsertUserLevel({ 
     id: ul?.id || "", 
