@@ -93,6 +93,34 @@ export function createSpawner(ctx: SpawnerCtx) {
     });
   }
 
+  function spawnBoss(wave: number, bossId: string, hpMultiplier = 6, speedMultiplier = 0.9) {
+    const baseHp = Math.max(30, Math.floor((1 + Math.floor(wave * 0.9)) * hpMultiplier));
+    const type = 2;
+    const spd = (0.03 + wave * 0.0025) * speedMult * speedMultiplier;
+    const { group, hpFg, col, arms, legs } = buildEnemyRig(type);
+    group.scale.setScalar(1.9);
+    const angle = Math.random() * Math.PI * 2;
+    group.position.set(Math.cos(angle) * (AR - 2), 0, Math.sin(angle) * (AR - 2));
+    scene.add(group);
+    enemies.push({
+      id: ++enemyIdCounter,
+      mesh: group,
+      hp: baseHp,
+      maxHp: baseHp,
+      speed: spd,
+      type,
+      col,
+      hpFg,
+      hitTimer: 0,
+      dmgTimer: 0,
+      arms,
+      legs,
+      animOffset: Math.random() * Math.PI * 2,
+      isBoss: true,
+      bossId,
+    });
+  }
+
   function spawnPickup(x: number, z: number) {
     const t = puTypes[Math.floor(Math.random() * puTypes.length)];
     const m = new THREE.Mesh(
@@ -120,5 +148,5 @@ export function createSpawner(ctx: SpawnerCtx) {
     }
   }
 
-  return { spawnBullet, spawnEnemy, spawnPickup, spawnParticles, tickParticles };
+  return { spawnBullet, spawnEnemy, spawnBoss, spawnPickup, spawnParticles, tickParticles };
 }

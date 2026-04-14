@@ -505,3 +505,207 @@ export async function legacyUserExists(username: string) {
     .single();
   return data !== null;
 }
+
+// ─────────────────────────────────────────
+// STREAKS / RIVALS / RECORDS / EVENTS
+// ─────────────────────────────────────────
+
+export async function updateUserStreak(userId: string, today: string) {
+  const supabase = createServiceClient();
+  const { data: existing } = await supabase
+    .from("user_streaks")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+
+  const todayDate = new Date(`${today}T00:00:00`);
+  const yesterday = new Date(todayDate);
+  yesterday.setDate(todayDate.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+  let current = 1;
+  let best = 1;
+  if (existing) {
+    if (existing.last_played_date === today) {
+      return existing;
+    }
+    current = existing.last_played_date === yesterdayStr ? (existing.current_streak ?? 0) + 1 : 1;
+    best = Math.max(existing.best_streak ?? 0, current);
+  }
+
+  const { data, error } = await supabase
+    .from("user_streaks")
+    .upsert(
+      {
+        user_id: userId,
+        current_streak: current,
+        best_streak: best,
+        last_played_date: today,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    )
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getUserStreak(userId: string) {
+  const { data } = await createServiceClient()
+    .from("user_streaks")
+    .select("current_streak, best_streak, last_played_date")
+    .eq("user_id", userId)
+    .single();
+  return data;
+}
+
+export async function getTopStreaks(limit = 50) {
+  const { data } = await createServiceClient()
+    .from("user_streaks")
+    .select("current_streak, best_streak, profiles:user_id(username)")
+    .order("current_streak", { ascending: false })
+    .order("best_streak", { ascending: false })
+    .limit(limit);
+  return data || [];
+}
+
+export async function getRivalsForUser(username: string, mode: "global" | "weekly", weekStart?: string) {
+  if (mode === "weekly" && weekStart) {
+    const rows = await getWeeklyScores(weekStart, 300);
+    const ranked = rows.map((r, i) => ({ rank: i + 1, username: r.username, score: r.score }));
+    const idx = ranked.findIndex((r) => r.username === username);
+    if (idx < 0) return { me: null, above: null, below: null };
+    return {
+      me: ranked[idx],
+      above: idx > 0 ? ranked[idx - 1] : null,
+      below: idx < ranked.length - 1 ? ranked[idx + 1] : null,
+    };
+  }
+
+  const top = await getTopScores(300);
+  const ranked = top.map((r: any, i) => ({
+    rank: i + 1,
+    username: r.profiles?.username || r.username,
+    score: r.score,
+  }));
+  const idx = ranked.findIndex((r) => r.username === username);
+  if (idx < 0) return { me: null, above: null, below: null };
+  return {
+    me: ranked[idx],
+    above: idx > 0 ? ranked[idx - 1] : null,
+    below: idx < ranked.length - 1 ? ranked[idx + 1] : null,
+  };
+}
+
+export async function upsertWeeklyEventScore(weekStart: string, eventId: string, userId: string, username: string, score: number) {
+  const supabase = createServiceClient();
+  const { data: existing } = await supabase
+    .from("weekly_event_scores")
+    .select("id, score")
+    .eq("week_start", weekStart)
+    .eq("event_id", eventId)
+    .eq("user_id", userId)
+    .single();
+  if (!existing) {
+    const { error } = await supabase.from("weekly_event_scores").insert({
+      week_start: weekStart,
+      event_id: eventId,
+      user_id: userId,
+      username,
+      score,
+    });
+    if (error) throw error;
+    return;
+  }
+  if (score > existing.score) {
+    const { error } = await supabase
+      .from("weekly_event_scores")
+      .update({ score, username })
+      .eq("id", existing.id);
+    if (error) throw error;
+  }
+}
+
+export async function getWeeklyEventScores(weekStart: string, eventId: string, limit = 100) {
+  const { data } = await createServiceClient()
+    .from("weekly_event_scores")
+    .select("username, score")
+    .eq("week_start", weekStart)
+    .eq("event_id", eventId)
+    .order("score", { ascending: false })
+    .limit(limit);
+  return data || [];
+}
+
+export async function getWeeklyBossKill(weekStart: string) {
+  const { data } = await createServiceClient()
+    .from("weekly_boss_kills")
+    .select("*")
+    .eq("week_start", weekStart)
+    .single();
+  return data;
+}
+
+export async function claimWeeklyBossKill(weekStart: string, bossId: string, killerUserId: string, killerUsername: string) {
+  const supabase = createServiceClient();
+  const existing = await getWeeklyBossKill(weekStart);
+  if (existing) return existing;
+  const { data, error } = await supabase
+    .from("weekly_boss_kills")
+    .insert({
+      week_start: weekStart,
+      boss_id: bossId,
+      killer_user_id: killerUserId,
+      killer_username: killerUsername,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getHistoricalRecords() {
+  const supabase = createServiceClient();
+  const [wave, kills, score, streak] = await Promise.all([
+    supabase
+      .from("scores")
+      .select("wave, created_at, profiles:user_id(username)")
+      .order("wave", { ascending: false })
+      .limit(1)
+      .single(),
+    supabase
+      .from("scores")
+      .select("kills, created_at, profiles:user_id(username)")
+      .order("kills", { ascending: false })
+      .limit(1)
+      .single(),
+    supabase
+      .from("scores")
+      .select("score, created_at, profiles:user_id(username)")
+      .order("score", { ascending: false })
+      .limit(1)
+      .single(),
+    supabase
+      .from("user_streaks")
+      .select("best_streak, updated_at, profiles:user_id(username)")
+      .order("best_streak", { ascending: false })
+      .limit(1)
+      .single(),
+  ]);
+
+  return {
+    maxWave: wave.data
+      ? { value: wave.data.wave, username: (wave.data as any).profiles?.username ?? "—", date: wave.data.created_at }
+      : null,
+    maxKills: kills.data
+      ? { value: kills.data.kills, username: (kills.data as any).profiles?.username ?? "—", date: kills.data.created_at }
+      : null,
+    maxScore: score.data
+      ? { value: score.data.score, username: (score.data as any).profiles?.username ?? "—", date: score.data.created_at }
+      : null,
+    maxStreak: streak.data
+      ? { value: streak.data.best_streak, username: (streak.data as any).profiles?.username ?? "—", date: (streak.data as any).updated_at }
+      : null,
+  };
+}

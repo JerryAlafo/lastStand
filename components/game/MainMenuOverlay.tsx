@@ -548,6 +548,50 @@ export default function MainMenuOverlay({
           <Trophy size={13} /> Leaderboard
         </button>
         <button
+          onClick={() => router.push("/records")}
+          style={{
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.05)",
+            color: "rgba(255,255,255,0.6)",
+            fontSize: 12,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            fontFamily: "inherit",
+            fontWeight: 700,
+            backdropFilter: "blur(8px)",
+            transition: "all 0.15s",
+          }}
+        >
+          <Crown size={13} /> Recordes
+        </button>
+        <button
+          onClick={() => router.push("/events")}
+          style={{
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.05)",
+            color: "rgba(255,255,255,0.6)",
+            fontSize: 12,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            fontFamily: "inherit",
+            fontWeight: 700,
+            backdropFilter: "blur(8px)",
+            transition: "all 0.15s",
+          }}
+        >
+          <Zap size={13} /> Eventos
+        </button>
+        <button
           onClick={() => router.push("/profile")}
           style={{
             padding: "10px 12px",

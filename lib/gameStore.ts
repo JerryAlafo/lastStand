@@ -73,12 +73,12 @@ const SHIELD_START_DURATION = 60
 const ENEMY_DAMAGE_COOLDOWN = 25
 
 function classStats(c: ClassType | null) {
-  if (c === 'warrior')      return { hp: 6, maxHp: 6, playerSpeed: 0.10, shotCount: 1, fireRate: 32 }
-  if (c === 'assassin')     return { hp: 4, maxHp: 4, playerSpeed: 0.18, shotCount: 1, fireRate: 22 }
-  if (c === 'mage')         return { hp: 4, maxHp: 4, playerSpeed: 0.11, shotCount: 2, fireRate: 40 }
-  if (c === 'archer')       return { hp: 4, maxHp: 4, playerSpeed: 0.14, shotCount: 1, fireRate: 20 }
-  if (c === 'paladin')      return { hp: 8, maxHp: 8, playerSpeed: 0.09, shotCount: 1, fireRate: 38 }
-  if (c === 'necromancer')  return { hp: 4, maxHp: 4, playerSpeed: 0.11, shotCount: 3, fireRate: 48 }
+  if (c === 'warrior')      return { hp: 5, maxHp: 5, playerSpeed: 0.11, shotCount: 1, fireRate: 32 }
+  if (c === 'assassin')     return { hp: 5, maxHp: 5, playerSpeed: 0.11, shotCount: 1, fireRate: 22 }
+  if (c === 'mage')         return { hp: 5, maxHp: 5, playerSpeed: 0.11, shotCount: 2, fireRate: 40 }
+  if (c === 'archer')       return { hp: 5, maxHp: 5, playerSpeed: 0.11, shotCount: 1, fireRate: 20 }
+  if (c === 'paladin')      return { hp: 5, maxHp: 5, playerSpeed: 0.11, shotCount: 1, fireRate: 38 }
+  if (c === 'necromancer')  return { hp: 5, maxHp: 5, playerSpeed: 0.11, shotCount: 3, fireRate: 48 }
   return                         { hp: 5, maxHp: 5, playerSpeed: 0.11, shotCount: 1, fireRate: 32 }
 }
 

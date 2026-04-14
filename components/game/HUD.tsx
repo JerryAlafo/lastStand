@@ -50,10 +50,12 @@ export default function HUD({
   multiProps,
   challengeProps,
   challengeUsername,
+  eventId,
 }: {
   multiProps?: MultiProps;
   challengeProps?: ChallengeProps;
   challengeUsername?: string;
+  eventId?: string;
 }) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -97,7 +99,7 @@ export default function HUD({
     fetch("/api/scores/save", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ score, wave, kills, blastCount }),
+      body: JSON.stringify({ score, wave, kills, blastCount, eventId }),
     }).catch(() => {});
   }
 
@@ -344,7 +346,7 @@ export default function HUD({
     fetch("/api/scores/save", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ score, wave, kills, blastCount }),
+      body: JSON.stringify({ score, wave, kills, blastCount, eventId }),
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {

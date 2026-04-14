@@ -14,6 +14,8 @@ export interface Enemy {
   arms: Array<{ upper: THREE.Group; lower: THREE.Group; side: number }>;
   legs: Array<{ upper: THREE.Group; lower: THREE.Group; side: number }>;
   animOffset: number;
+  isBoss?: boolean;
+  bossId?: string;
 }
 
 export interface Bullet {

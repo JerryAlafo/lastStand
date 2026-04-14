@@ -10,6 +10,7 @@ import { buildEnemyRig } from "@/lib/enemyRig";
 import { buildArena } from "@/lib/arenaBuilder";
 import { createSpawner } from "@/lib/gameSpawner";
 import { getMapById } from "@/lib/maps";
+import { getWeeklyBoss } from "@/lib/weeklyContent";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 const AR = 18; // Legacy constant - no longer used for boundary checks
@@ -33,9 +34,11 @@ export interface ChallengeProps {
 export default function GameScene({
   multiProps,
   challengeProps,
+  eventMode = false,
 }: {
   multiProps?: MultiProps;
   challengeProps?: ChallengeProps;
+  eventMode?: boolean;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef<any>({});
@@ -44,9 +47,43 @@ export default function GameScene({
   storeRef.current = store;
 
   const [mounted, setMounted] = useState(false);
+  const eventConfigRef = useRef<any>(null);
+  const bossStatusRef = useRef<any>(null);
+  const [activeEventId, setActiveEventId] = useState<string | undefined>(undefined);
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const fallbackBoss = getWeeklyBoss();
+    fetch("/api/events/active")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        eventConfigRef.current = d;
+        setActiveEventId(eventMode && d?.isActive ? d?.event?.id : undefined);
+      })
+      .catch(() => {
+        eventConfigRef.current = null;
+        setActiveEventId(undefined);
+      });
+    fetch("/api/boss/weekly")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        bossStatusRef.current = d ?? {
+          boss: fallbackBoss,
+          defeated: false,
+          killer: null,
+        };
+      })
+      .catch(() => {
+        bossStatusRef.current = {
+          boss: fallbackBoss,
+          defeated: false,
+          killer: null,
+        };
+      });
+  }, [mounted, eventMode]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -234,9 +271,15 @@ export default function GameScene({
       { name: "Velocidade", color: 0x2ecc71, effect: "speed" },
     ];
 
+    const eventActive = !!(eventMode && eventConfigRef.current?.isActive);
+    const eventModifiers = eventActive
+      ? eventConfigRef.current?.event?.modifiers ?? {}
+      : {};
+
     const {
       spawnBullet,
       spawnEnemy,
+      spawnBoss,
       spawnPickup,
       spawnParticles,
       tickParticles,
@@ -255,6 +298,22 @@ export default function GameScene({
       speedMult: mapConfig?.speedMult ?? 1,
       hpMult: mapConfig?.hpMult ?? 1,
     });
+
+    const disablePowerups = !!eventModifiers.disablePowerups;
+    const fireBulletsOnly = !!eventModifiers.fireBulletsOnly;
+    const infiniteWave = !!eventModifiers.infiniteWave;
+    const eventBulletBonus = fireBulletsOnly ? 1 : 0;
+    if (fireBulletsOnly) bulletMat.color.set(0xff5522);
+
+    let bossWavePrepared = false;
+    let bossSpawned = false;
+    const getWeeklyBossState = () =>
+      bossStatusRef.current ?? {
+        boss: getWeeklyBoss(),
+        defeated: false,
+        killer: null,
+      };
+    const weeklyBossEnabled = !!getWeeklyBossState()?.boss;
 
     // Input
     const keys: Record<string, boolean> = {};
@@ -323,8 +382,33 @@ export default function GameScene({
         ? 2
         : 1;
       ultKills = Math.min(ULT_NEEDED, ultKills + blastBonus);
-      if (Math.random() < 0.22)
+      if (!disablePowerups && Math.random() < 0.22)
         spawnPickup(e.mesh.position.x, e.mesh.position.z);
+      if (e.isBoss) {
+        const current = getWeeklyBossState();
+        bossStatusRef.current = {
+          ...current,
+          defeated: true,
+          killer: "Tu",
+          killedAt: new Date().toISOString(),
+        };
+        storeRef.current.setWaveMessage(`Boss semanal derrotado por Tu`);
+        if (!multiProps || (multiProps.mode === "coop" && multiProps.role === "host")) {
+          fetch("/api/boss/weekly", { method: "POST" })
+            .then(async (r) => {
+              const payload = await r.json().catch(() => null);
+              const killer = payload?.claimed?.killer_username ?? "Tu";
+              const nowState = getWeeklyBossState();
+              bossStatusRef.current = {
+                ...nowState,
+                defeated: true,
+                killer,
+              };
+              storeRef.current.setWaveMessage(`Boss já caiu: ${killer}`);
+            })
+            .catch(() => undefined);
+        }
+      }
     }
 
     function activateUlt() {
@@ -844,9 +928,49 @@ export default function GameScene({
         (multiProps.mode === "coop" && multiProps.role === "host")
       ) {
         if (s.waveTimer === 0) {
-          if (s.tickSpawn()) spawnEnemy(s.wave);
+          const weeklyBossData = getWeeklyBossState();
+          if (weeklyBossEnabled && s.wave === 5 && !bossWavePrepared) {
+            bossWavePrepared = true;
+            if (weeklyBossData?.defeated) {
+              s.setWaveMessage(
+                `Boss já caiu: ${weeklyBossData?.killer ?? "Outro jogador"}`,
+              );
+            } else {
+              useGameStore.setState({ spawnQueue: 0, enemiesLeft: 1 });
+              s.setWaveMessage(
+                `BOSS SEMANAL: ${weeklyBossData?.boss?.name ?? "Boss"}`,
+              );
+            }
+          }
+
+          if (weeklyBossEnabled && s.wave === 5 && !weeklyBossData?.defeated) {
+            if (!bossSpawned) {
+              spawnBoss(
+                s.wave,
+                weeklyBossData?.boss?.name ?? "weekly_boss",
+                weeklyBossData?.boss?.hpMult ?? 7,
+                weeklyBossData?.boss?.speedMult ?? 1,
+              );
+              bossSpawned = true;
+            }
+          } else if (s.tickSpawn()) {
+            spawnEnemy(s.wave);
+          }
+
           if (s.spawnQueue === 0 && enemies.length === 0 && s.enemiesLeft <= 0)
-            s.nextWave();
+            if (infiniteWave) {
+              useGameStore.setState({
+                wave: s.wave + 1,
+                waveTimer: 0,
+                spawnQueue: 10 + (s.wave + 1) * 4,
+                enemiesLeft: 10 + (s.wave + 1) * 4,
+                waveMessage: `WAVE ${s.wave + 1}!`,
+                running: true,
+                pendingUpgrade: false,
+              });
+            } else {
+              s.nextWave();
+            }
         } else if (s.waveTimer === 1) {
           s.startWave();
         }
@@ -1066,7 +1190,7 @@ export default function GameScene({
             }
           } else {
             const piercing = (s.upgrades as string[]).includes("piercing");
-            const dmg = s.bulletDamage ?? 1;
+            const dmg = (s.bulletDamage ?? 1) + eventBulletBonus;
             for (let ei = enemies.length - 1; ei >= 0; ei--) {
               const en = enemies[ei];
               const dx = b.mesh.position.x - en.mesh.position.x;
@@ -1316,7 +1440,7 @@ export default function GameScene({
           method: "POST",
         }).catch(() => undefined);
     };
-  }, [mounted]);
+  }, [mounted, eventMode]);
 
   return (
     <ErrorBoundary>
@@ -1326,6 +1450,7 @@ export default function GameScene({
           multiProps={multiProps}
           challengeProps={challengeProps}
           challengeUsername={challengeProps?.username}
+          eventId={activeEventId}
         />
       </div>
     </ErrorBoundary>

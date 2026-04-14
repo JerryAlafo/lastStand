@@ -17,6 +17,8 @@ import {
   getTopScores,
   getWeeklyScores,
   getPushMeta,
+  updateUserStreak,
+  upsertWeeklyEventScore,
 } from "@/lib/db";
 import {
   getLevel, xpForGame, getDailyMissions, getTodayDate,
@@ -24,6 +26,7 @@ import {
 } from "@/lib/levelSystem";
 import { broadcastPush } from "@/lib/push";
 import { createServiceClient } from "@/lib/supabase";
+import { getCurrentWeeklyEvent } from "@/lib/weeklyContent";
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,12 +35,13 @@ export async function POST(req: NextRequest) {
     const userId = token?.userId as string | undefined;
     if (!username || !userId) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
-    const body = (await req.json()) as { score?: number; wave?: number; kills?: number; blastCount?: number; mapId?: string };
+    const body = (await req.json()) as { score?: number; wave?: number; kills?: number; blastCount?: number; mapId?: string; eventId?: string };
     const score      = Number(body.score      ?? 0);
     const wave       = Number(body.wave       ?? 0);
     const kills      = Number(body.kills      ?? 0);
     const blastCount = Number(body.blastCount ?? 0);
     const mapId      = body.mapId ?? "arena";
+    const eventId    = body.eventId ?? null;
     if (!Number.isFinite(score) || !Number.isFinite(wave) || !Number.isFinite(kills)) {
       return NextResponse.json({ error: "Payload inválido." }, { status: 400 });
     }
@@ -48,9 +52,14 @@ export async function POST(req: NextRequest) {
 
     // 1. Save main score
     await saveScore(userId, score, wave, kills, blastCount, mapId);
+    const streak = await updateUserStreak(userId, today);
 
     // 2. Save weekly score
     await upsertWeeklyScore(userId, username, score, weekStartDate);
+    const event = getCurrentWeeklyEvent();
+    if (eventId && event.isActive && event.event.id === eventId) {
+      await upsertWeeklyEventScore(weekStartDate, eventId, userId, username, score);
+    }
 
     // 3. XP + level
     const xpEarned = xpForGame(score, wave, kills);
@@ -172,6 +181,7 @@ export async function POST(req: NextRequest) {
       levelUp,
       newAchievements,
       selectedClass: ul?.selected_class ?? null,
+      streak: streak?.current_streak ?? 0,
     });
   } catch (error) {
     console.error("Score save error:", error);

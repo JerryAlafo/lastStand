@@ -87,6 +87,8 @@ export default function ProfilePage() {
   const [achievements,  setAchievements]  = useState<Achievement[]>([]);
   const [loading,       setLoading]       = useState(true);
   const [classChanging, setClassChanging] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -100,6 +102,11 @@ export default function ProfilePage() {
         if (lv) setLevelInfo(lv);
         setMissions(ms.missions ?? []);
         setAchievements(ach.achievements ?? []);
+        const prof = await fetch(`/api/profile/${encodeURIComponent(session?.user?.username ?? "")}`).then(r => r.ok ? r.json() : null);
+        if (prof) {
+          setStreak(prof.streak ?? 0);
+          setBestStreak(prof.bestStreak ?? 0);
+        }
       } catch {
         // show partial data
       } finally {
@@ -196,6 +203,10 @@ export default function ProfilePage() {
                       <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, textTransform: "uppercase", fontFamily: "monospace" }}>Conquistas</Typography>
                       <Typography sx={{ fontSize: 16, fontWeight: 800, color: "#aa55ff", lineHeight: 1.2 }}>{unlockedCount}/{achievements.length}</Typography>
                     </Box>
+                    <Box sx={{ textAlign: "center" }}>
+                      <Typography sx={{ fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: 1, textTransform: "uppercase", fontFamily: "monospace" }}>Streak</Typography>
+                      <Typography sx={{ fontSize: 16, fontWeight: 800, color: "#ff8c00", lineHeight: 1.2 }}>🔥 {streak}</Typography>
+                    </Box>
                   </Box>
                 </Box>
 
@@ -217,6 +228,9 @@ export default function ProfilePage() {
                 ) : (
                   <Typography sx={{ fontSize: 12, color: levelInfo.color, fontWeight: 700, textAlign: "center" }}>Nível máximo atingido!</Typography>
                 )}
+                <Typography sx={{ mt: 1, fontSize: 11, color: "rgba(255,255,255,0.45)", fontFamily: "monospace" }}>
+                  Melhor streak: 🔥 {bestStreak} dias
+                </Typography>
               </Box>
             )}
 

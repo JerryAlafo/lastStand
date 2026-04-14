@@ -10,8 +10,16 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { Trophy, ArrowLeft, Crown, Swords, Zap } from "lucide-react";
 import { getLevelTitle, getLevelColor } from "@/lib/levelSystem";
 
-type ScoreRow = { rank: number; username: string; score: number; wave: number; kills: number; date?: string; weekId?: string };
+type ScoreRow = { rank: number; username: string; score: number; wave: number; kills: number; date?: string; weekId?: string; streak?: number };
 type LevelMap = Record<string, { level: number; title: string; color: string }>;
+type RivalsData = {
+  me: { rank: number; username: string; score: number } | null;
+  above: { rank: number; username: string; score: number } | null;
+  below: { rank: number; username: string; score: number } | null;
+  gapToAbove: number | null;
+  message: string;
+  mode: "global" | "weekly";
+};
 
 const RANK_COLORS = ["#ffd700", "#c0c0c0", "#cd7f32"];
 const RANK_ICONS  = [<Crown key={1} size={14} color="#ffd700" />, <Crown key={2} size={14} color="#c0c0c0" />, <Crown key={3} size={14} color="#cd7f32" />];
@@ -21,11 +29,13 @@ export default function LeaderboardPage() {
   const router   = useRouter();
   const isMobile = useMediaQuery("(max-width:640px)");
 
-  const [tab,      setTab]      = useState<"global" | "weekly">("global");
+  const [tab,      setTab]      = useState<"global" | "weekly" | "rivals">("global");
   const [rows,     setRows]     = useState<ScoreRow[]>([]);
   const [weekRows, setWeekRows] = useState<ScoreRow[]>([]);
   const [levels,   setLevels]   = useState<LevelMap>({});
   const [loading,  setLoading]  = useState(true);
+  const [rivals, setRivals] = useState<RivalsData | null>(null);
+  const [rivalsLoading, setRivalsLoading] = useState(false);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -47,8 +57,18 @@ export default function LeaderboardPage() {
     })();
   }, [status]);
 
+  useEffect(() => {
+    if (tab !== "rivals" || status !== "authenticated") return;
+    setRivalsLoading(true);
+    fetch("/api/scores/rivals?mode=global")
+      .then(r => r.ok ? r.json() : null)
+      .then(setRivals)
+      .catch(() => setRivals(null))
+      .finally(() => setRivalsLoading(false));
+  }, [tab, status]);
+
   const me       = session?.user?.username;
-  const display  = tab === "global" ? rows : weekRows;
+  const display  = tab === "weekly" ? weekRows : rows;
 
   function LevelBadge({ username }: { username: string }) {
     const lv = levels[username];
@@ -81,7 +101,7 @@ export default function LeaderboardPage() {
 
         {/* Tabs */}
         <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
-          {(["global", "weekly"] as const).map(t => (
+          {(["global", "weekly", "rivals"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{
               padding: "8px 20px", borderRadius: 8, cursor: "pointer", fontFamily: "monospace", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1,
               background: tab === t ? "rgba(123,47,247,0.3)" : "rgba(255,255,255,0.04)",
@@ -89,9 +109,10 @@ export default function LeaderboardPage() {
               color: tab === t ? "#aa77ff" : "rgba(255,255,255,0.5)",
               transition: "all 0.2s",
             }}>
-              {t === "global" ? "🌍 Global" : "📅 Semanal"}
+              {t === "global" ? "🌍 Global" : t === "weekly" ? "📅 Semanal" : "🎯 Rivais"}
             </button>
           ))}
+
           {tab === "weekly" && (
             <span style={{ marginLeft: "auto", fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "monospace", alignSelf: "center" }}>
               Reseta toda segunda-feira
@@ -99,7 +120,32 @@ export default function LeaderboardPage() {
           )}
         </Box>
 
-        {/* Table */}
+        {tab === "rivals" ? (
+          <Box sx={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 3, p: 2.5 }}>
+            <Button onClick={async () => {
+              setRivalsLoading(true);
+              const d = await fetch("/api/scores/rivals?mode=global").then(r => r.json());
+              setRivals(d);
+              setRivalsLoading(false);
+            }} sx={{ mb: 1.5, textTransform: "none" }} variant="outlined">Atualizar rivalidade</Button>
+            {rivalsLoading ? (
+              <Box sx={{ py: 4, textAlign: "center", color: "rgba(255,255,255,0.3)" }}>A carregar...</Box>
+            ) : (
+              <>
+                <Typography sx={{ color: "#ffd700", mb: 2 }}>{rivals?.message ?? "Clica em atualizar para ver quem está acima e abaixo de ti."}</Typography>
+                {[rivals?.above, rivals?.me, rivals?.below].map((r, idx) => (
+                  <Box key={idx} sx={{ p: 1.2, mb: 1, borderRadius: 2, border: "1px solid rgba(255,255,255,0.1)", bgcolor: idx === 1 ? "rgba(123,47,247,0.16)" : "rgba(255,255,255,0.03)" }}>
+                    {r ? (
+                      <Typography>{r.rank}. {r.username} — {r.score.toLocaleString()} pts</Typography>
+                    ) : (
+                      <Typography sx={{ color: "rgba(255,255,255,0.35)" }}>—</Typography>
+                    )}
+                  </Box>
+                ))}
+              </>
+            )}
+          </Box>
+        ) : (
         <Box sx={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 3, backdropFilter: "blur(12px)", boxShadow: "0 0 60px rgba(123,47,247,0.1), 0 8px 32px rgba(0,0,0,0.4)", overflow: "hidden" }}>
           <Box sx={{ display: "grid", gridTemplateColumns: isMobile ? "44px 1fr 90px 70px" : "60px 1fr 120px 90px 90px 140px", px: isMobile ? 1.5 : 2.5, py: 1.5, borderBottom: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.02)" }}>
             {(isMobile ? ["#", "Jogador", "Score", "Kills"] : ["#", "Jogador", "Score", "Wave", "Kills", "Data"]).map(h => (
@@ -138,6 +184,7 @@ export default function LeaderboardPage() {
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                   <Zap size={12} color="#ffd700" />
                   <Typography sx={{ fontSize: isMobile ? 13 : 14, fontWeight: 700, color: "#ffd700" }}>{r.score.toLocaleString()}</Typography>
+                  {!!r.streak && <Typography sx={{ fontSize: 11, color: "#ff8c00", ml: 0.5 }}>🔥 {r.streak}</Typography>}
                 </Box>
                 {!isMobile && <Typography sx={{ fontSize: 14, color: "#f39c12", fontWeight: 600 }}>{r.wave}</Typography>}
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
@@ -154,11 +201,13 @@ export default function LeaderboardPage() {
             );
           })}
         </Box>
+        )}
 
         <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 2 }}>
           <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
             {tab === "global" ? "Scores globais" : "Scores desta semana"} · Last Stand Arena
           </Typography>
+          <a href="/records" style={{ textDecoration: "none" }}><Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>Mural de Recordes</Typography></a>
           <a href="/contact" style={{ textDecoration: "none" }}>
             <Typography sx={{ fontSize: 12, color: "rgba(123,47,247,0.4)", "&:hover": { color: "#aa55ff" }, transition: "color 0.2s", cursor: "pointer" }}>Contacto</Typography>
           </a>

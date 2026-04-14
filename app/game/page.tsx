@@ -123,6 +123,7 @@ function GamePageInner() {
   const roomId = params.get("room") ?? undefined;
   const role   = (params.get("role") ?? undefined) as "host" | "guest" | undefined;
   const mode   = (params.get("mode") ?? undefined) as "pvp" | "coop" | undefined;
+  const eventMode = params.get("event") === "1";
 
   const multiProps = roomId && role && mode ? { roomId, role, mode } : undefined;
 
@@ -139,7 +140,7 @@ function GamePageInner() {
   return (
     <div style={{ width: "100vw", height: "100vh", overflow: "hidden", background: "#0a0008" }}>
       {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
-      <GameScene key={gameKey} multiProps={multiProps} />
+      <GameScene key={gameKey} multiProps={multiProps} eventMode={eventMode} />
     </div>
   );
 }

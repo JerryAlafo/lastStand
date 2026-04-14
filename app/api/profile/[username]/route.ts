@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { getLevelTitle, getLevelColor, getWeekId } from "@/lib/levelSystem";
+import { getUserStreak } from "@/lib/db";
 
 export async function GET(_req: Request, { params }: { params: { username: string } }) {
   try {
@@ -36,11 +37,12 @@ export async function GET(_req: Request, { params }: { params: { username: strin
       page++;
     }
 
-    const [levelResult, achievementsResult, pvpResult, weeklyResult] = await Promise.all([
+    const [levelResult, achievementsResult, pvpResult, weeklyResult, streakResult] = await Promise.all([
       supabase.from("user_levels").select("*").eq("user_id", userId).single(),
       supabase.from("achievements").select("achievement_id").eq("user_id", userId),
       supabase.from("pvp_wins").select("id", { count: "exact", head: true }).eq("user_id", userId),
       supabase.from("weekly_scores").select("score").eq("user_id", userId).eq("week_start", getWeekId()),
+      getUserStreak(userId),
     ]);
 
     const scores = allScores;
@@ -60,6 +62,8 @@ export async function GET(_req: Request, { params }: { params: { username: strin
     const selectedClass = levelInfo?.selected_class || null;
     const title = getLevelTitle(level);
     const color = getLevelColor(level);
+    const streak = streakResult?.current_streak ?? 0;
+    const bestStreak = streakResult?.best_streak ?? 0;
 
     const scoreHistory = scores.map(s => ({
       score: s.score,
@@ -81,6 +85,8 @@ export async function GET(_req: Request, { params }: { params: { username: strin
       gamesPlayed,
       pvpWins,
       weeklyBest,
+      streak,
+      bestStreak,
       achievements: achievements.map(a => a.achievement_id),
       scoreHistory,
     });
