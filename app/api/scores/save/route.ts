@@ -50,16 +50,25 @@ export async function POST(req: NextRequest) {
     const weekId = getWeekId();
     const weekStartDate = getWeekStartDate();
 
+    const event = getCurrentWeeklyEvent();
+    const isEventRun = !!(eventId && event.isActive && event.event.id === eventId);
+
+    if (isEventRun) {
+      // Event scores are isolated and must never affect global/weekly ladders.
+      await upsertWeeklyEventScore(weekStartDate, eventId, userId, username, score);
+      return NextResponse.json({
+        ok: true,
+        eventOnly: true,
+        eventId,
+      });
+    }
+
     // 1. Save main score
     await saveScore(userId, score, wave, kills, blastCount, mapId);
     const streak = await updateUserStreak(userId, today);
 
     // 2. Save weekly score
     await upsertWeeklyScore(userId, username, score, weekStartDate);
-    const event = getCurrentWeeklyEvent();
-    if (eventId && event.isActive && event.event.id === eventId) {
-      await upsertWeeklyEventScore(weekStartDate, eventId, userId, username, score);
-    }
 
     // 3. XP + level
     const xpEarned = xpForGame(score, wave, kills);
