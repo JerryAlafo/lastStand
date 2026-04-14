@@ -81,29 +81,29 @@ export default function LeaderboardPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 50% 20%, #1a0a3a 0%, #0a0010 65%)", color: "#fff", padding: "28px 20px", fontFamily: "'Segoe UI', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 50% 20%, #1a0a3a 0%, #0a0010 65%)", color: "#fff", padding: isMobile ? "18px 12px 24px" : "28px 20px", fontFamily: "'Segoe UI', sans-serif" }}>
       <div style={{ position: "fixed", top: "5%", left: "10%", width: 350, height: 350, borderRadius: "50%", background: "radial-gradient(circle, rgba(123,47,247,0.14) 0%, transparent 70%)", pointerEvents: "none" }} />
 
       <Box sx={{ maxWidth: 820, mx: "auto", position: "relative", zIndex: 1 }}>
         {/* Header */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2.2, flexWrap: "wrap" }}>
           <Button onClick={() => router.push("/game")} startIcon={<ArrowLeft size={16} />} variant="outlined"
             sx={{ color: "rgba(255,255,255,0.7)", borderColor: "rgba(255,255,255,0.15)", borderRadius: 2, textTransform: "none", "&:hover": { borderColor: "rgba(255,255,255,0.35)", bgcolor: "rgba(255,255,255,0.05)" } }}>
             Voltar
           </Button>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <Trophy size={26} color="#ffd700" style={{ filter: "drop-shadow(0 0 8px #ffd70066)" }} />
-            <Typography sx={{ fontSize: 26, fontWeight: 800, background: "linear-gradient(135deg, #fff, #aa55ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: 1 }}>
+            <Typography sx={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, background: "linear-gradient(135deg, #fff, #aa55ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: 1 }}>
               Leaderboard
             </Typography>
           </Box>
         </Box>
 
         {/* Tabs */}
-        <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
+        <Box sx={{ display: "flex", gap: 1, mb: 2.2, flexWrap: "wrap" }}>
           {(["global", "weekly", "rivals"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{
-              padding: "8px 20px", borderRadius: 8, cursor: "pointer", fontFamily: "monospace", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1,
+              padding: isMobile ? "7px 12px" : "8px 20px", borderRadius: 8, cursor: "pointer", fontFamily: "monospace", fontSize: isMobile ? 11 : 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1,
               background: tab === t ? "rgba(123,47,247,0.3)" : "rgba(255,255,255,0.04)",
               border: `1px solid ${tab === t ? "rgba(123,47,247,0.6)" : "rgba(255,255,255,0.1)"}`,
               color: tab === t ? "#aa77ff" : "rgba(255,255,255,0.5)",
@@ -121,22 +121,50 @@ export default function LeaderboardPage() {
         </Box>
 
         {tab === "rivals" ? (
-          <Box sx={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 3, p: 2.5 }}>
-            <Button onClick={async () => {
-              setRivalsLoading(true);
-              const d = await fetch("/api/scores/rivals?mode=global").then(r => r.json());
-              setRivals(d);
-              setRivalsLoading(false);
-            }} sx={{ mb: 1.5, textTransform: "none" }} variant="outlined">Atualizar rivalidade</Button>
+          <Box sx={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
+            <Box sx={{ px: 2.5, py: 1.5, borderBottom: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.02)", display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography sx={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: "rgba(200,150,255,0.75)", textTransform: "uppercase" }}>
+                Rivalidade Direta
+              </Typography>
+              <Typography sx={{ ml: "auto", fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "monospace" }}>
+                {rivals?.mode === "weekly" ? "Semanal" : "Global"}
+              </Typography>
+            </Box>
+
+            <Box sx={{ p: isMobile ? 1.4 : 2.5 }}>
+            <Box sx={{ display: "flex", gap: 1, mb: 1.5, flexWrap: "wrap" }}>
+              <Button onClick={async () => {
+                setRivalsLoading(true);
+                const d = await fetch("/api/scores/rivals?mode=global").then(r => r.json());
+                setRivals(d);
+                setRivalsLoading(false);
+              }} sx={{ textTransform: "none", borderColor: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)" }} variant="outlined">Global</Button>
+              <Button onClick={async () => {
+                setRivalsLoading(true);
+                const d = await fetch("/api/scores/rivals?mode=weekly").then(r => r.json());
+                setRivals(d);
+                setRivalsLoading(false);
+              }} sx={{ textTransform: "none", borderColor: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)" }} variant="outlined">Semanal</Button>
+            </Box>
             {rivalsLoading ? (
               <Box sx={{ py: 4, textAlign: "center", color: "rgba(255,255,255,0.3)" }}>A carregar...</Box>
             ) : (
               <>
                 <Typography sx={{ color: "#ffd700", mb: 2 }}>{rivals?.message ?? "Clica em atualizar para ver quem está acima e abaixo de ti."}</Typography>
                 {[rivals?.above, rivals?.me, rivals?.below].map((r, idx) => (
-                  <Box key={idx} sx={{ p: 1.2, mb: 1, borderRadius: 2, border: "1px solid rgba(255,255,255,0.1)", bgcolor: idx === 1 ? "rgba(123,47,247,0.16)" : "rgba(255,255,255,0.03)" }}>
+                  <Box key={idx} sx={{ p: isMobile ? 1 : 1.5, mb: 1, borderRadius: 2, border: "1px solid rgba(255,255,255,0.1)", bgcolor: idx === 1 ? "rgba(123,47,247,0.16)" : "rgba(255,255,255,0.03)", display: "flex", alignItems: "center", gap: 1.2 }}>
                     {r ? (
-                      <Typography>{r.rank}. {r.username} — {r.score.toLocaleString()} pts</Typography>
+                      <>
+                        <Box sx={{ width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, background: idx === 1 ? "rgba(123,47,247,0.4)" : "rgba(255,255,255,0.07)", color: idx === 1 ? "#aa55ff" : "rgba(255,255,255,0.7)" }}>
+                          {r.username.slice(0, 2).toUpperCase()}
+                        </Box>
+                        <Typography sx={{ fontSize: isMobile ? 13 : 14, color: idx === 1 ? "#aa55ff" : "rgba(255,255,255,0.9)", fontWeight: idx === 1 ? 700 : 500 }}>
+                          #{r.rank} {r.username}
+                        </Typography>
+                        <Typography sx={{ ml: "auto", fontSize: isMobile ? 12 : 13, fontWeight: 700, color: "#ffd700" }}>
+                          {r.score.toLocaleString()} pts
+                        </Typography>
+                      </>
                     ) : (
                       <Typography sx={{ color: "rgba(255,255,255,0.35)" }}>—</Typography>
                     )}
@@ -144,6 +172,7 @@ export default function LeaderboardPage() {
                 ))}
               </>
             )}
+            </Box>
           </Box>
         ) : (
         <Box sx={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 3, backdropFilter: "blur(12px)", boxShadow: "0 0 60px rgba(123,47,247,0.1), 0 8px 32px rgba(0,0,0,0.4)", overflow: "hidden" }}>
@@ -204,7 +233,7 @@ export default function LeaderboardPage() {
         )}
 
         <Box sx={{ mt: 3, display: "flex", justifyContent: "center", gap: 2 }}>
-          <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
+          <Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.2)", textAlign: "center" }}>
             {tab === "global" ? "Scores globais" : "Scores desta semana"} · Last Stand Arena
           </Typography>
           <a href="/records" style={{ textDecoration: "none" }}><Typography sx={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>Mural de Recordes</Typography></a>
