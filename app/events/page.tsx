@@ -32,6 +32,7 @@ export default function EventsPage() {
       minute: "2-digit" 
     });
   };
+  // };
 
   const getEventImageUrl = (imageName: string) => {
     if (!imageName) return null;
