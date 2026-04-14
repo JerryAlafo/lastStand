@@ -998,10 +998,10 @@ export default function HUD({
             left: "50%",
             transform: "translate(-50%, -50%)",
             color: "#f39c12",
-            fontSize: 30,
+            fontSize: isMobile ? 18 : 30,
             fontWeight: 700,
             fontFamily: "monospace",
-            textShadow: "0 0 20px #f39c12",
+            textShadow: isMobile ? "0 0 10px #f39c12" : "0 0 20px #f39c12",
             pointerEvents: "none",
             whiteSpace: "nowrap",
           }}

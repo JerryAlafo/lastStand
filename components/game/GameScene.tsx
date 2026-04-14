@@ -404,7 +404,7 @@ export default function GameScene({
                 defeated: true,
                 killer,
               };
-              storeRef.current.setWaveMessage(`Boss já caiu: ${killer}`);
+              storeRef.current.setWaveMessage(`Boss da wave morto por: ${killer}`);
             })
             .catch(() => undefined);
         }
@@ -933,7 +933,7 @@ export default function GameScene({
             bossWavePrepared = true;
             if (weeklyBossData?.defeated) {
               s.setWaveMessage(
-                `Boss já caiu: ${weeklyBossData?.killer ?? "Outro jogador"}`,
+                `Boss da wave morto por: ${weeklyBossData?.killer ?? "Outro jogador"}`,
               );
             } else {
               useGameStore.setState({ spawnQueue: 0, enemiesLeft: 1 });
