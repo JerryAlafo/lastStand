@@ -33,6 +33,11 @@ export default function EventsPage() {
     });
   };
 
+  const getEventImageUrl = (imageName: string) => {
+    if (!imageName) return null;
+    return `/${imageName}.jpeg`;
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 50% 20%, #1a0a3a 0%, #0a0010 65%)", color: "#fff", padding: isMobile ? "18px 12px 24px" : "28px 20px", fontFamily: "'Segoe UI', sans-serif" }}>
       <Box sx={{ maxWidth: 600, mx: "auto" }}>
@@ -49,32 +54,66 @@ export default function EventsPage() {
           </Box>
         </Box>
 
-        <Box sx={{ p: isMobile ? 1.5 : 2.5, borderRadius: 3, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)" }}>
-          <Typography sx={{ fontSize: 15, fontWeight: 700, mb: 1, color: "rgba(255,255,255,0.9)" }}>{data?.event?.name ?? "A carregar evento..."}</Typography>
-          <Typography sx={{ fontSize: 13, color: "rgba(255,255,255,0.45)", mb: 2 }}>{data?.event?.description ?? "..."}</Typography>
-          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, color: "rgba(255,255,255,0.35)", fontSize: 12, mb: 1 }}>
-            <Clock3 size={14} />
-            <span style={{ lineHeight: 1.35 }}>
-              {active ? "Ativo agora" : `Abre a ${formatDate(data?.eventStart)}`}
-              {data?.eventEnd && ` · Termina a ${formatDate(data.eventEnd)}`}
-            </span>
+        <Box sx={{ borderRadius: 3, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", overflow: "hidden" }}>
+          {data?.event?.image && (
+            <Box sx={{ position: "relative", width: "100%", height: isMobile ? 260 : 380, overflow: "hidden" }}>
+              <img 
+                src={getEventImageUrl(data.event.image)} 
+                alt={data.event.name}
+                style={{ 
+                  width: "100%", 
+                  height: "100%", 
+                  objectFit: "cover",
+                  objectPosition: "center 30%",
+                  filter: active ? "brightness(1)" : "brightness(0.4)"
+                }}
+              />
+              {!active && (
+                <Box sx={{ 
+                  position: "absolute", 
+                  top: 0, 
+                  left: 0, 
+                  right: 0, 
+                  bottom: 0, 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  background: "rgba(0,0,0,0.5)"
+                }}>
+                  <Typography sx={{ color: "rgba(255,255,255,0.7)", fontWeight: 700, fontSize: isMobile ? 14 : 16 }}>
+                    Bloqueado
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          )}
+          <Box sx={{ p: isMobile ? 1.5 : 2.5 }}>
+            <Typography sx={{ fontSize: 15, fontWeight: 700, mb: 1, color: "rgba(255,255,255,0.9)" }}>{data?.event?.name ?? "A carregar evento..."}</Typography>
+            <Typography sx={{ fontSize: 13, color: "rgba(255,255,255,0.45)", mb: 2 }}>{data?.event?.description ?? "..."}</Typography>
+            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, color: "rgba(255,255,255,0.35)", fontSize: 12, mb: 1 }}>
+              <Clock3 size={14} />
+              <span style={{ lineHeight: 1.35 }}>
+                {active ? "Ativo agora" : `Abre a ${formatDate(data?.eventStart)}`}
+                {data?.eventEnd && ` · Termina a ${formatDate(data.eventEnd)}`}
+              </span>
+            </Box>
+            <Button
+              disabled={!active}
+              onClick={() => router.push(`/game?event=1`)}
+              variant="contained"
+              startIcon={<Flame size={14} />}
+              sx={{ 
+                textTransform: "none", 
+                fontWeight: 700, 
+                background: active ? "linear-gradient(135deg, #7b2ff7, #aa55ff)" : "rgba(255,255,255,0.1)",
+                color: active ? "#fff" : "rgba(255,255,255,0.3)",
+                borderRadius: 2,
+                opacity: active ? 1 : 0.5
+              }}
+            >
+              Jogar Evento
+            </Button>
           </Box>
-          <Button
-            disabled={!active}
-            onClick={() => router.push(`/game?event=1`)}
-            variant="contained"
-            startIcon={<Flame size={14} />}
-            sx={{ 
-              textTransform: "none", 
-              fontWeight: 700, 
-              background: active ? "linear-gradient(135deg, #7b2ff7, #aa55ff)" : "rgba(255,255,255,0.1)",
-              color: active ? "#fff" : "rgba(255,255,255,0.3)",
-              borderRadius: 2,
-              opacity: active ? 1 : 0.5
-            }}
-          >
-            Jogar Evento
-          </Button>
         </Box>
 
         <Box sx={{ mt: 2.5, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>

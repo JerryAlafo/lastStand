@@ -9,6 +9,7 @@ export type WeeklyEventConfig = {
   name: string;
   description: string;
   durationHours: number;
+  image: string;
   modifiers: {
     fireBulletsOnly?: boolean;
     enemySpeedMult?: number;
@@ -23,6 +24,7 @@ const WEEKLY_EVENTS: WeeklyEventConfig[] = [
     name: "Chuva de Fogo",
     description: "Só balas de fogo e dano extra.",
     durationHours: 48,
+    image: "chuva de fogo",
     modifiers: { fireBulletsOnly: true },
   },
   {
@@ -30,6 +32,7 @@ const WEEKLY_EVENTS: WeeklyEventConfig[] = [
     name: "Fúria Veloz",
     description: "Inimigos 2x mais rápidos.",
     durationHours: 48,
+    image: "furia veloz",
     modifiers: { enemySpeedMult: 2 },
   },
   {
@@ -37,6 +40,7 @@ const WEEKLY_EVENTS: WeeklyEventConfig[] = [
     name: "Sem Ajuda",
     description: "Sem power-ups de pickup durante a run.",
     durationHours: 48,
+    image: "sem ajuda",
     modifiers: { disablePowerups: true },
   },
   {
@@ -44,6 +48,7 @@ const WEEKLY_EVENTS: WeeklyEventConfig[] = [
     name: "Mar Infinito",
     description: "Sem pausa para upgrades entre waves.",
     durationHours: 48,
+    image: "desafio semanal",
     modifiers: { infiniteWave: true },
   },
 ];

@@ -20,6 +20,7 @@ import {
   Target,
   BarChart2,
   Crosshair,
+  Flame,
 } from "lucide-react";
 import { UPGRADE_POOL, hasUpgradesAvailable } from "@/lib/upgradeCards";
 import { MultiProps } from "@/lib/gameTypes";
@@ -264,7 +265,17 @@ export default function HUD({
   } | null>(null);
   const [achievementToasts, setAchievementToasts] = useState<string[]>([]);
   const [upgradeToast, setUpgradeToast] = useState<string | null>(null);
+  const [bossToast, setBossToast] = useState<string | null>(null);
   const upgradeToastTimer = useRef<ReturnType<typeof setTimeout>>();
+  const bossToastTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    if (waveMessage && (waveMessage.includes("Boss"))) {
+      setBossToast(waveMessage);
+      clearTimeout(bossToastTimer.current);
+      bossToastTimer.current = setTimeout(() => setBossToast(null), 4000);
+    }
+  }, [waveMessage]);
 
   function handlePickUpgrade(id: string) {
     if (id) {
@@ -545,6 +556,38 @@ export default function HUD({
               Conquista: {name}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Boss kill toast ── */}
+      {bossToast && (
+        <div
+          style={{
+            position: "absolute",
+            top: isMobile ? 80 : 130,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 30,
+            background: "rgba(255,50,50,0.2)",
+            border: "2px solid rgba(255,100,100,0.7)",
+            borderRadius: 12,
+            padding: isMobile ? "10px 16px" : "14px 28px",
+            fontSize: isMobile ? 13 : 15,
+            fontWeight: 800,
+            color: "#ff8888",
+            fontFamily: "monospace",
+            backdropFilter: "blur(12px)",
+            boxShadow: "0 0 30px rgba(255,50,50,0.4), 0 4px 20px rgba(0,0,0,0.5)",
+            animation: "upgradeToastFade 4s ease-in-out forwards",
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+            display: "flex",
+            alignItems: "center",
+            gap: isMobile ? 6 : 10,
+          }}
+        >
+          <Flame size={isMobile ? 14 : 18} color="#ff4444" />
+          {bossToast}
         </div>
       )}
 
