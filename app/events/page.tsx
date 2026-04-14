@@ -65,7 +65,7 @@ export default function EventsPage() {
                   height: "100%", 
                   objectFit: "cover",
                   objectPosition: "center 30%",
-                  filter: active ? "brightness(1)" : "brightness(0.4)"
+                  filter: active ? "brightness(1)" : "brightness(0.75)"
                 }}
               />
               {!active && (
@@ -78,7 +78,7 @@ export default function EventsPage() {
                   display: "flex", 
                   alignItems: "center", 
                   justifyContent: "center",
-                  background: "rgba(0,0,0,0.5)"
+                  background: "rgba(0,0,0,0.1)"
                 }}>
                   <Typography sx={{ color: "rgba(255,255,255,0.7)", fontWeight: 700, fontSize: isMobile ? 14 : 16 }}>
                     Bloqueado
