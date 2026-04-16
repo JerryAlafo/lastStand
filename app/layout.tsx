@@ -4,6 +4,27 @@ import "./globals.css";
 export const metadata = {
   title: "Last Stand Arena",
   description: "Arena de combate — criado por Jerry Alafo",
+  openGraph: {
+    title: "Last Stand Arena",
+    description: "Arena de combate — criado por Jerry Alafo",
+    url: "https://laststand.vercel.app",
+    siteName: "Last Stand Arena",
+    images: [
+      {
+        url: "/favicon.png",
+        width: 512,
+        height: 512,
+      },
+    ],
+    locale: "pt_BR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Last Stand Arena",
+    description: "Arena de combate — criado por Jerry Alafo",
+    images: ["/favicon.png"],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
