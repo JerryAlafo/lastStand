@@ -1,9 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import TrendsModal from "@/components/game/TrendsModal";
 
 const GameScene = dynamic(() => import("@/components/game/GameScene"), {
   ssr: false,
@@ -113,12 +114,22 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
   );
 }
 
+interface TrendModifier {
+  enemySpeedMult?: number;
+  playerDamageMult?: number;
+  spawnRateMult?: number;
+  xpMult?: number;
+  fireBulletsOnly?: boolean;
+  noPowerups?: boolean;
+}
+
 function GamePageInner() {
   const { status } = useSession();
   const router = useRouter();
   const params = useSearchParams();
   const [showSplash, setShowSplash] = useState(true);
   const [gameKey, setGameKey] = useState(0);
+  const [trendModifier, setTrendModifier] = useState<TrendModifier | undefined>(undefined);
 
   const roomId = params.get("room") ?? undefined;
   const role   = (params.get("role") ?? undefined) as "host" | "guest" | undefined;
@@ -137,10 +148,15 @@ function GamePageInner() {
     return () => window.removeEventListener("gameRestart", handler);
   }, []);
 
+  const handleTrendApply = useCallback((mod: TrendModifier | undefined) => {
+    if (mod) setTrendModifier(mod);
+  }, []);
+
   return (
     <div style={{ width: "100vw", height: "100vh", overflow: "hidden", background: "#0a0008" }}>
       {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
-      <GameScene key={gameKey} multiProps={multiProps} eventMode={eventMode} />
+      {!showSplash && <TrendsModal onApplyModifier={handleTrendApply} />}
+      <GameScene key={gameKey} multiProps={multiProps} eventMode={eventMode} trendModifier={trendModifier} />
     </div>
   );
 }

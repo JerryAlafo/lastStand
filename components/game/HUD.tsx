@@ -52,11 +52,20 @@ export default function HUD({
   challengeProps,
   challengeUsername,
   eventId,
+  trendModifier,
 }: {
   multiProps?: MultiProps;
   challengeProps?: ChallengeProps;
   challengeUsername?: string;
   eventId?: string;
+  trendModifier?: {
+    enemySpeedMult?: number;
+    playerDamageMult?: number;
+    spawnRateMult?: number;
+    xpMult?: number;
+    fireBulletsOnly?: boolean;
+    noPowerups?: boolean;
+  };
 }) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -616,6 +625,7 @@ export default function HUD({
         textSecondary={textSecondary}
         topBarBg={topBarBg}
         cardBorder={cardBorder}
+        trendModifier={trendModifier}
       />
 
       {/* ── Challenge Objectives Panel ── */}

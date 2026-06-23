@@ -31,14 +31,25 @@ export interface ChallengeProps {
   username?: string;
 }
 
+export interface TrendModifier {
+  enemySpeedMult?: number;
+  playerDamageMult?: number;
+  spawnRateMult?: number;
+  xpMult?: number;
+  fireBulletsOnly?: boolean;
+  noPowerups?: boolean;
+}
+
 export default function GameScene({
   multiProps,
   challengeProps,
   eventMode = false,
+  trendModifier,
 }: {
   multiProps?: MultiProps;
   challengeProps?: ChallengeProps;
   eventMode?: boolean;
+  trendModifier?: TrendModifier;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef<any>({});
@@ -295,15 +306,19 @@ export default function GameScene({
       pickupGeo,
       puTypes,
       isMobile: isWeak,
-      speedMult: mapConfig?.speedMult ?? 1,
+      speedMult: (mapConfig?.speedMult ?? 1) * (trendModifier?.enemySpeedMult ?? 1),
       hpMult: mapConfig?.hpMult ?? 1,
     });
 
-    const disablePowerups = !!eventModifiers.disablePowerups;
-    const fireBulletsOnly = !!eventModifiers.fireBulletsOnly;
+    const trendMods = trendModifier ?? {};
+    const disablePowerups = !!(eventModifiers.disablePowerups || trendMods.noPowerups);
+    const fireBulletsOnly = !!(eventModifiers.fireBulletsOnly || trendMods.fireBulletsOnly);
     const infiniteWave = !!eventModifiers.infiniteWave;
     const eventBulletBonus = fireBulletsOnly ? 1 : 0;
     if (fireBulletsOnly) bulletMat.color.set(0xff5522);
+    const trendPlayerDmgMult = trendMods.playerDamageMult ?? 1;
+    const trendSpawnRateMult = trendMods.spawnRateMult ?? 1;
+    const trendXpMult = trendMods.xpMult ?? 1;
 
     let bossWavePrepared = false;
     let bossSpawned = false;
@@ -376,7 +391,8 @@ export default function GameScene({
       const s = storeRef.current;
       s.addKill();
       s.addScore(10 * s.wave);
-      s.addXp();
+      const xpGain = Math.floor(s.xpMultiplier * trendXpMult);
+      for (let xi = 0; xi < xpGain; xi++) s.addXp();
       s.enemyDied();
       const blastBonus = (s.upgrades as string[]).includes("blast_charge")
         ? 2
@@ -1190,7 +1206,7 @@ export default function GameScene({
             }
           } else {
             const piercing = (s.upgrades as string[]).includes("piercing");
-            const dmg = (s.bulletDamage ?? 1) + eventBulletBonus;
+            const dmg = Math.floor(((s.bulletDamage ?? 1) + eventBulletBonus) * trendPlayerDmgMult);
             for (let ei = enemies.length - 1; ei >= 0; ei--) {
               const en = enemies[ei];
               const dx = b.mesh.position.x - en.mesh.position.x;
@@ -1451,6 +1467,7 @@ export default function GameScene({
           challengeProps={challengeProps}
           challengeUsername={challengeProps?.username}
           eventId={activeEventId}
+          trendModifier={trendModifier}
         />
       </div>
     </ErrorBoundary>

@@ -27,7 +27,7 @@ import { Session } from "next-auth";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { MultiProps } from "@/lib/gameTypes";
 import { MAPS } from "@/lib/maps";
-import { MapPin } from "lucide-react";
+import { MapPin, TrendingUp } from "lucide-react";
 
 interface LevelInfo { level: number; title: string; color: string; xpProgress: number; xpNeeded: number; selectedClass: string | null }
 
@@ -227,13 +227,16 @@ export default function MainMenuOverlay({
           color: "rgba(200,150,255,0.6)",
           textTransform: "uppercase",
           fontFamily: "monospace",
-          marginBottom: compactLayout ? 14 : 22,
+          marginBottom: compactLayout ? 8 : 12,
           position: "relative",
           zIndex: 1,
         }}
       >
         por Jerry Alafo
       </div>
+
+      {/* Trending indicator */}
+      <TrendingBadge compactLayout={compactLayout} />
 
       {/* Level + XP bar */}
       {levelInfo ? (
@@ -719,4 +722,60 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   const arr = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
   return arr.buffer;
+}
+
+function TrendingBadge({ compactLayout }: { compactLayout: boolean }) {
+  const [trendTitle, setTrendTitle] = useState<string | null>(null);
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem("lsa_trends_dismissed");
+    const today = new Date().toISOString().slice(0, 10);
+    if (dismissed === today) return;
+
+    fetch("/api/trends")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.events?.length > 0) {
+          setTrendTitle(d.events[0].trendTitle);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  if (!trendTitle) return null;
+
+  return (
+    <div
+      style={{
+        marginBottom: compactLayout ? 8 : 14,
+        position: "relative",
+        zIndex: 1,
+        display: "flex",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "4px 12px",
+          borderRadius: 16,
+          background: "rgba(123,47,247,0.12)",
+          border: "1px solid rgba(123,47,247,0.3)",
+          fontSize: 10,
+          fontWeight: 700,
+          color: "#aa55ff",
+          fontFamily: "monospace",
+          letterSpacing: 1,
+          animation: "trendBadgePulse 2.5s ease-in-out infinite",
+        }}
+      >
+        <TrendingUp size={12} />
+        <span style={{ color: "rgba(200,150,255,0.5)" }}>TRENDING:</span>
+        <span style={{ color: "#cc88ff" }}>{trendTitle.length > 28 ? trendTitle.slice(0, 28) + "..." : trendTitle}</span>
+      </div>
+      <style>{`@keyframes trendBadgePulse { 0%,100% { opacity: 0.7; } 50% { opacity: 1; } }`}</style>
+    </div>
+  );
 }

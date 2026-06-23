@@ -6,18 +6,32 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { ArrowLeft, Clock3, Flame } from "lucide-react";
+import { ArrowLeft, Clock3, Flame, TrendingUp, Newspaper } from "lucide-react";
+
+interface TrendItem {
+  title: string;
+  traffic: string;
+  pubDate: string;
+}
 
 export default function EventsPage() {
   const router = useRouter();
   const isMobile = useMediaQuery("(max-width:640px)");
   const [data, setData] = useState<any>(null);
+  const [trends, setTrends] = useState<TrendItem[]>([]);
+  const [trendsLoading, setTrendsLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/events/active")
       .then((r) => (r.ok ? r.json() : null))
       .then(setData)
       .catch(() => setData(null));
+
+    fetch("/api/trends")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setTrends(d?.trends?.slice(0, 10) ?? []))
+      .catch(() => {})
+      .finally(() => setTrendsLoading(false));
   }, []);
 
   const active = !!data?.isActive;
@@ -142,6 +156,46 @@ export default function EventsPage() {
             )}
           </Box>
         </Box>
+
+        {/* Trending Now Section */}
+        {trends.length > 0 && (
+          <Box sx={{ mt: 2.5, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(123,47,247,0.2)", borderRadius: 3, overflow: "hidden" }}>
+            <Box sx={{ px: 2.5, py: 1.5, borderBottom: "1px solid rgba(255,255,255,0.07)", background: "rgba(123,47,247,0.05)", display: "flex", alignItems: "center", gap: 1 }}>
+              <TrendingUp size={14} color="#aa55ff" />
+              <Typography sx={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, color: "rgba(200,150,255,0.75)", textTransform: "uppercase" }}>
+                Tendências ao Vivo
+              </Typography>
+              <Typography sx={{ fontSize: 9, color: "rgba(200,150,255,0.4)", ml: "auto", fontFamily: "monospace" }}>
+                via Google Trends
+              </Typography>
+            </Box>
+            <Box sx={{ p: isMobile ? 1.2 : 2 }}>
+              {trendsLoading ? (
+                <Typography sx={{ color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
+                  A carregar tendências...
+                </Typography>
+              ) : (
+                trends.map((t, i) => (
+                  <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1.2, py: 0.7, borderBottom: i < trends.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                    <Typography sx={{ width: 22, color: i < 3 ? "#aa55ff" : "rgba(255,255,255,0.4)", fontWeight: 700, fontSize: 12 }}>
+                      {i + 1}
+                    </Typography>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography sx={{ color: "rgba(255,255,255,0.85)", fontSize: isMobile ? 12 : 13, lineHeight: 1.3 }}>
+                        {t.title}
+                      </Typography>
+                      {t.traffic && t.traffic !== "0" && (
+                        <Typography sx={{ color: "rgba(200,150,255,0.4)", fontSize: 10, fontFamily: "monospace" }}>
+                          {t.traffic}+ buscas
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                ))
+              )}
+            </Box>
+          </Box>
+        )}
       </Box>
     </div>
   );

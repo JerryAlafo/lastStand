@@ -1,6 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { TrendingUp } from "lucide-react";
+
+interface TrendModifier {
+  enemySpeedMult?: number;
+  playerDamageMult?: number;
+  spawnRateMult?: number;
+  xpMult?: number;
+  fireBulletsOnly?: boolean;
+  noPowerups?: boolean;
+}
 
 interface Props {
   hp: number;
@@ -13,10 +23,23 @@ interface Props {
   textSecondary: string;
   topBarBg: string;
   cardBorder: string;
+  trendModifier?: TrendModifier;
 }
 
-export default function TopBar({ hp, maxHp, wave, score, kills, isMobile, textPrimary, textSecondary, topBarBg, cardBorder }: Props) {
+export default function TopBar({ hp, maxHp, wave, score, kills, isMobile, textPrimary, textSecondary, topBarBg, cardBorder, trendModifier }: Props) {
   const [isTiny, setIsTiny] = useState(false);
+  const trendActive = trendModifier && Object.keys(trendModifier).length > 0;
+  const trendLabel = trendModifier?.xpMult && trendModifier.xpMult > 1
+    ? `XP x${trendModifier.xpMult}`
+    : trendModifier?.playerDamageMult && trendModifier.playerDamageMult > 1
+    ? `DMG x${trendModifier.playerDamageMult}`
+    : trendModifier?.enemySpeedMult && trendModifier.enemySpeedMult > 1
+    ? `SPEED x${trendModifier.enemySpeedMult}`
+    : trendModifier?.noPowerups
+    ? `SEM PU`
+    : trendModifier?.fireBulletsOnly
+    ? `SO FOGO`
+    : null;
   
   useEffect(() => {
     function updateSize() {
@@ -101,8 +124,33 @@ export default function TopBar({ hp, maxHp, wave, score, kills, isMobile, textPr
         </div>
       </div>
 
+      {/* Trend indicator */}
+      {trendActive && trendLabel && !isTiny && (
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 3,
+          padding: "2px 8px",
+          borderRadius: 12,
+          background: "rgba(123,47,247,0.15)",
+          border: "1px solid rgba(123,47,247,0.3)",
+          fontSize: isMobile ? 9 : 10,
+          fontWeight: 700,
+          color: "#aa55ff",
+          fontFamily: "monospace",
+          letterSpacing: 1,
+          whiteSpace: "nowrap",
+          animation: "trendPulse 2s ease-in-out infinite",
+        }}>
+          <TrendingUp size={isMobile ? 9 : 10} />
+          {trendLabel}
+        </div>
+      )}
+
       {/* Spacer for desktop buttons */}
       {!isMobile && !isTiny && <div style={{ width: 40 }} />}
+
+      <style>{`@keyframes trendPulse { 0%,100% { opacity: 0.7; } 50% { opacity: 1; } }`}</style>
     </div>
   );
 }
