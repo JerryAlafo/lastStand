@@ -989,6 +989,19 @@ export default function GameScene({
             }
         } else if (s.waveTimer === 1) {
           s.startWave();
+          // Fetch AI wave message in background
+          fetch("/api/game/wave-message", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ wave: s.wave, kills: s.kills, hp: s.hp }),
+          })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => {
+              if (d?.message) {
+                useGameStore.setState({ waveMessage: d.message });
+              }
+            })
+            .catch(() => {});
         }
       }
 

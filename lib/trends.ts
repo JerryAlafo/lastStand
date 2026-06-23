@@ -23,7 +23,6 @@ export type TrendCategory =
   | "entertainment"
   | "technology"
   | "gaming"
-  | "politics"
   | "news"
   | "other";
 
@@ -49,33 +48,37 @@ export interface GameModifier {
 // Keyword → category mapping
 const CATEGORY_KEYWORDS: Record<TrendCategory, string[]> = {
   sports: [
-    "copa", "world cup", "futebol", "football", "soccer", "champions",
-    "league", "premier", "liga", "jogos olímpicos", "olympics", "nba",
-    "nfl", "ufc", "formula 1", "f1", "tênis", "tenis", "atletismo",
-    "gol", "goal", "mundial", "euro", "brasileirão", "serie a",
-    "world", "cup", "mundial", "copa do mundo", "seleção", "selecao",
-    "brasil", "brazil", "portugal", "argentina", "messi", "neymar",
-    "mbappe", "haaland", "vinicius", "rodrygo", "palmeiras", "flamengo",
-    "corinthians", "são paulo", "botafogo", "fortaleza", "maracanã",
-    "final", "semifinal", "quartas", "oitavas", "eliminatória",
+    "copa", "world cup", "mundial", "futebol", "football", "soccer",
+    "champions", "league", "premier", "liga", "jogos olimpicos", "olympics",
+    "nba", "nfl", "ufc", "formula 1", "f1", "tenis", "atletismo",
+    "gol", "goal", "euro", "brasileirao", "serie a",
+    "selecao", "selecao brasileira", "brasil", "brazil", "portugal",
+    "argentina", "messi", "neymar", "mbappe", "haaland", "vinicius",
+    "rodrygo", "palmeiras", "flamengo", "corinthians", "sao paulo",
+    "botafogo", "fortaleza", "maracana", "arena",
+    "final", "semifinal", "quartas", "oitavas", "eliminatoria",
+    "jordania", "argelia", "algeria", "jordan", "group", "grupo",
+    "ticket", "ingresso", "stadium", "estadio", "match", "jogo",
+    "simulador copa", "copa do mundo", "fifa", "selecao",
+    "paraguai", "turquia", "usa", "usmnt", "franca", "noruega",
   ],
   entertainment: [
-    "film", "movie", "filme", "série", "series", "netflix", "disney",
+    "film", "movie", "filme", "serie", "series", "netflix", "disney",
     "anime", "manga", "marvel", "dc", "star wars", "concert", "show",
     "festival", "grammy", "oscar", "emmy", "taylor swift", "bad bunny",
-    "drake", "billie", "música", "musica", "álbum", "album",
-    "première", "estreia", "trailer", "season", "temporada",
+    "drake", "billie", "musica", "album",
+    "premiere", "estreia", "trailer", "season", "temporada",
     "avatar", "barbie", "oppenheimer", "dune", "gta", "gta 6",
     "cyberpunk", "zelda", "mario", "fortnite", "valorant",
   ],
   technology: [
-    "ai", "inteligência artificial", "artificial intelligence",
+    "ai", "inteligencia artificial", "artificial intelligence",
     "chatgpt", "openai", "google", "apple", "iphone", "android",
     "tesla", "spacex", "elon musk", "meta", "facebook", "instagram",
-    "tiktok", "x", "twitter", "blockchain", "cripto", "crypto",
-    "bitcoin", "nft", "cloud", "5g", "quantum", "robô", "robot",
+    "tiktok", "twitter", "blockchain", "cripto", "crypto",
+    "bitcoin", "nft", "cloud", "5g", "quantum", "robot",
     "software", "hardware", "chip", "gpu", "nvidia", "amd", "intel",
-    "startup", "unicorn", "cybersecurity", "hack", "data",
+    "startup", "cybersecurity", "hack", "data",
   ],
   gaming: [
     "game", "jogo", "gamer", "esports", "e-sports", "steam",
@@ -86,18 +89,12 @@ const CATEGORY_KEYWORDS: Record<TrendCategory, string[]> = {
     "elden ring", "dark souls", "diablo", "overwatch", "genshin",
     "stream", "twitch", "yt", "youtube", "tiktok",
   ],
-  politics: [
-    "eleição", "election", "presidente", "president", "governo",
-    "government", "senado", "deputado", "congresso", "vote",
-    "voto", "urna", "campanha", "partido", "ministro", "lei",
-    "law", "reforma", "impeach", "democracia", "liberdade",
-  ],
   news: [
     "terremoto", "earthquake", "tsunami", "furacão", "hurricane",
-    "incêndio", "fire", "enchente", "flood", "covid", "vacina",
+    "incendio", "fire", "enchente", "flood", "covid", "vacina",
     "vaccine", "pandemia", "pandemic", "guerra", "war", "conflict",
     "crise", "crisis", "protesto", "protest", "greve", "strike",
-    "acidente", "desastre", "desastre natural",
+    "acidente", "desastre",
   ],
   other: [],
 };
@@ -135,14 +132,6 @@ const EVENT_TEMPLATES: Record<TrendCategory, Omit<TrendEvent, "id" | "trendTitle
     modalIcon: "Gamepad2",
     modalColor: "#9b59b6",
     gameModifier: { enemySpeedMult: 1.25, xpMult: 2 },
-  },
-  politics: {
-    category: "politics",
-    modalTitle: "Tendencia Detectada!",
-    modalMessage: "O mundo esta em ebulicao! Sobreviva ao caos - dano aumentado em 50%.",
-    modalIcon: "BarChart3",
-    modalColor: "#f39c12",
-    gameModifier: { playerDamageMult: 1.5 },
   },
   news: {
     category: "news",
